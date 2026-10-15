@@ -59,6 +59,6 @@ Dann http://127.0.0.1:4173 öffnen. Build erzeugt dist/ sowie apps-script/Code.g
 
 Die Browserprüfungen laufen mit Chromium-Mobilprofil und WebKit-iPhone-Profil. Windows-WebKit besitzt keine Canvas-Kamerastreams; Playwright-WebKit scheitert bei Offline-Neuladen mit Service Worker. Diese jeweiligen Tests sind ausdrücklich übersprungen, Chromium prüft die Pfade. Ein physischer iPhone-Test bleibt erforderlich. Echte Gruppendaten werden nicht für automatisierte Testbuchungen verwendet.
 
-Struktur: src/core.js (Barcode), freebies.js (Preise/Erfolge/Statistik), db.js (atomare lokale Speicherung/Migration), store.js + group-bridge.js (gemeinsame Daten), camera-ui.js (Kamera und Rückgabe), dashboard.js (Gruppenansichten), app.js (Ablauf), apps-script/ (Google-Anbindung), tests/ (Kernlogik, simuliertes Backend, Browser).
+Struktur: src/core.js (Barcode), freebies.js (Preise/Erfolge/Statistik), db.js (atomare lokale Speicherung/Migration), store.js + group-bridge.js (gemeinsame Daten), camera-ui.js (Kamera und Rückgabe), dashboard.js (Gruppenansichten), chart-view.js (große interaktive Diagrammansicht), identity.js (Name und heutiges Datum), app.js (Ablauf), apps-script/ (Google-Anbindung), tests/ (Kernlogik, simuliertes Backend, Browser).
 
 [Google: HTML-Service und Serverkommunikation](https://developers.google.com/apps-script/guides/html/communication) · [Google: Web-Apps](https://developers.google.com/apps-script/guides/web) · [ZXing](https://github.com/zxing-js/browser). Lizenzen siehe THIRD_PARTY_NOTICES.md und dist/licenses/.
