@@ -70,7 +70,7 @@ npm run test:e2e
 
 Tests: bekannte Heuristik-Beispiele, Prüfziffern, unplausible Daten, Zifferngenauigkeit, echte I25-Bilddecodierung, Browser-Datenbank und Neuladen, parallele Duplikate, CSV, Filter, Löschen/Reset, Offline-Neuladen, mobile Breite, simulierte Kamera-Berechtigung und Track-Freigabe. Chromium-Mobilprofil sowie WebKit-iPhone-Profil. `BASE_URL=https://…/` führt dieselben Tests gegen das Deployment aus, in isolierten Testbrowsern.
 
-WebKit-Emulation ersetzt **keinen physischen iPhone-Test**: reale Safari-Berechtigungsdialoge, Autofokus, Papierqualität, Reflexionen und die Home-Bildschirm-Installation bleiben am Gerät zu prüfen. Die Kamera-Erfolgs-/Fehlerpfade werden automatisiert mit Test-Medien bzw. simuliertem Berechtigungsfehler geprüft. Windows-WebKit stellt keine Canvas-Kamerastreams bereit und scheitert intern an Offline-Neuladen; diese Prüfungen werden dort ausdrücklich übersprungen. Chromium prüft beide Pfade; die Linux-CI führt die WebKit-Prüfungen aus, soweit die Testengine sie unterstützt.
+WebKit-Emulation ersetzt **keinen physischen iPhone-Test**: reale Safari-Berechtigungsdialoge, Autofokus, Papierqualität, Reflexionen und die Home-Bildschirm-Installation bleiben am Gerät zu prüfen. Die Kamera-Erfolgs-/Fehlerpfade werden automatisiert mit Test-Medien bzw. simuliertem Berechtigungsfehler geprüft. Windows-WebKit stellt keine Canvas-Kamerastreams bereit. Die Offline-Emulation von Playwright-WebKit scheitert auch unter Linux intern am Neuladen mit Service Worker; diese jeweilige Prüfung wird ausdrücklich übersprungen. Chromium prüft beide Pfade vollständig; die Linux-CI führt die übrigen WebKit-Prüfungen aus, soweit die Testengine die Medienfunktionen unterstützt.
 
 ## Struktur
 
