@@ -6,6 +6,7 @@ function stopCamera(){
   for(const stream of new Set([cameraStream,$('camera').srcObject]))stream?.getTracks().forEach(track=>track.stop());cameraStream=null;$('camera').srcObject=null;
   $('start-camera').hidden=false;$('start-camera').disabled=false;$('stop-camera').hidden=true;$('camera-placeholder').hidden=false;
 }
+$('ticket-panel').addEventListener('toggle',()=>{if(!$('ticket-panel').open)stopCamera();});
 $('stop-camera').addEventListener('click',()=>{stopCamera();$('camera-status').textContent='Kamera gestoppt. Du kannst sie jederzeit neu starten.';});
 let receivePopup=null;
 function openExternalScanner(){

@@ -4,19 +4,18 @@ Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design, ergän
 
 ## Enthalten
 
-- Name merken, bekannte Personen auswählen, Aktivitätsdatum ändern.
+- Name auf dem Gerät merken; Datum beim Öffnen, Zurückkehren und Tageswechsel auf heute setzen. Bekannte Personen auswählen; Besuchsdatum bei Tickets prüfen.
 - Karren 16,50 €, Stadtbad 9,40 €, Freibier 4,50 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
 - I25 über Kamera, Foto oder Eingabe. Karren experimentell; Stadtbad wahrscheinlich mit Mod10. Barcode stets eindeutig, manuelle Schnellbuchungen separat mehrfach möglich.
 - Gemeinsame und persönliche Ersparnis, sieben Kategorien inklusive alter Archivdaten, Rangliste, Personen-Details, Überholhinweis, 1.000-€-Meilensteine.
-- Zwölf Erfolge inklusive Secret/Legende; sieben Dorfstufen von Zeltlager bis Dyson-Sphäre. Beim Freischalten werden keine Ersparnisse abgezogen.
-- Feature-Abstimmungen mit einer wechselbaren Stimme pro Person: Dark Mode, Push-Alarm, Statistiken, Mini-Spiel. Das sind Wünsche, keine als fertig dargestellten Zusatzfunktionen.
-- Kumulativer Spar-Verlauf pro Person mit ein-/ausblendbaren Linien und zugänglicher Datentabelle.
-- Such-/Personen-/Typfilter, Historie in Zehnerschritten, CSV aller Einträge, Einzel-Löschen und bestätigter Reset.
+- Zwölf Erfolge inklusive Secret/Legende. Spardorf und Feature-Abstimmungen sind aus der Oberfläche entfernt; frühere Daten bleiben unberührt.
+- Kumulativer Spar-Verlauf pro Person mit ein-/ausblendbaren Linien, zugänglicher Datentabelle und großer Ansicht mit Pinch-Zoom, Mausrad-Zoom und verschiebbarer Grafik.
+- Kompakter einklappbarer Ticketscanner, Rangliste direkt nach der Eingabe. Einklappbarer Verlauf ganz unten mit Such-/Personen-/Typfilter; Historie in Zehnerschritten, CSV aller Einträge, Einzel-Löschen und bestätigter Reset.
 - Neue Druckaufträge und Druck-Erfolg sind auf Wunsch entfernt. Vorhandene Druckwerte bleiben in Historie und Gesamtersparnis erhalten.
 
 ## Bestehender App-Link und Google Sheets
 
-Die vorhandene Apps-Script-Bereitstellung wird aktualisiert, keine neue Bereitstellung mit neuer URL angelegt. Das bestehende Blatt **Fahrten** und seine ersten vier Spalten bleiben erhalten, einschließlich deutscher Überschriften. Spalten E:H ergänzen stabile IDs, Barcode als Text, Aktivitätsdatum und Decodierung. Belegte fremde Zusatzspalten werden nicht überschrieben. Bestehende Votes werden weiterverwendet; Village speichert künftig gemeinsame Freischaltungen. Alte lokale Dorf-Freischaltungen werden auf dem jeweiligen Gerät weiter angezeigt.
+Die vorhandene Apps-Script-Bereitstellung wird aktualisiert, keine neue Bereitstellung mit neuer URL angelegt. Das bestehende Blatt **Fahrten** und seine ersten vier Spalten bleiben erhalten, einschließlich deutscher Überschriften. Spalten E:H ergänzen stabile IDs, Barcode als Text, Aktivitätsdatum und Decodierung. Belegte fremde Zusatzspalten werden nicht überschrieben. Vorhandene Abstimmungs- und Dorf-Daten bleiben gespeichert, werden in der Oberfläche jedoch nicht mehr angeboten.
 
 **apps-script/Code.gs** ist der fertige Backendcode, generiert aus dem gemeinsamen geprüften Datenmodell. **apps-script/Index.html** ist die kleine Oberfläche der bestehenden Google-App: Sie lädt HTML/CSS/JavaScript aus derselben GitHub-Pages-App und verwendet in Google automatisch google.script.run. Konten und Zugriffseinstellungen der vorhandenen Bereitstellung bleiben erhalten.
 

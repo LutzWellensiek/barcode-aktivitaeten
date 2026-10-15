@@ -72,3 +72,12 @@ Stand 482b556. Der bisherige Apps-Script-Link wurde als bestehende Bereitstellun
 - Physische iPhone-Kamera, tatsächlicher Safari-Berechtigungsdialog und Fokus auf gedruckten Tickets bleiben Gerätetests. Automatisierte Kamera- und Berechtigungstests verwenden simulierte Streams und isolierte Daten.
 
 [Erfolgreiche CI und Veröffentlichung der integrierten App](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38728059388)
+
+## Vereinfachte Oberfläche, 15.10.2026
+
+- Verbindungsstatus aus der Kopfzeile entfernt. Name wird in localStorage und zusätzlich in IndexedDB gespeichert; Datum wird beim Öffnen, Zurückkehren und Tageswechsel auf heute gesetzt. Das Besuchsdatum eines gescannten Tickets bleibt prüfbar.
+- Ticketscanner zunächst kompakt/eingeklappt. Verlauf steht ganz unten und ist zunächst geschlossen. Beim Tippen außerhalb klappen ungenutzte Bereiche zu; eine laufende Ticketprüfung bleibt offen. Kamera stoppt beim Einklappen.
+- Rangliste folgt unmittelbar auf die Eingabe. Spardorf und Feature-Abstimmungen sind aus der Oberfläche entfernt; bestehende Daten werden nicht gelöscht.
+- Große Diagrammansicht: responsives Diagramm, Zwei-Finger-Zoom, Verschieben, Zoomknöpfe und Zurücksetzen, Mausrad und Tastatur. Personen lassen sich auch in der großen Ansicht ein-/ausblenden.
+- Lokal: 43 Browserprüfungen bestanden, 3 bekannte Windows-WebKit-Einschränkungen übersprungen. Namens-Rückkehr, Ausweichspeicher, Mitternacht, Einklappen und Diagrammgesten sind in Chromium und WebKit geprüft. Synthetische Touch-Pointer prüfen die Pinch-Handler; echte Papierkamera und physisches iPhone bleiben Gerätetests.
+- Bei 320 / 390 / 768 / 1280 Pixel: kein seitliches Überlaufen, keine JavaScript-Fehler, große Diagrammansicht ohne verdeckte Bedienelemente. Visuelle Prüfung mit isolierten Beispieldaten.
