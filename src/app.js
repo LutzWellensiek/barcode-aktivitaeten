@@ -14,7 +14,7 @@ function showError(e){const message=e?.name==='ConstraintError'?'Bereits erfasst
 function confirmAction(title,message,label='Endgültig löschen'){return new Promise(resolve=>{const d=$('confirm-dialog');$('confirm-title').textContent=title;$('confirm-message').textContent=message;d.querySelector('button[value=confirm]').textContent=label;d.returnValue='';d.addEventListener('close',()=>resolve(d.returnValue==='confirm'),{once:true});d.showModal();});}
 function controls(){for(const button of document.querySelectorAll('[data-mutation]'))button.disabled=button.dataset.baseDisabled==='true'||busy||store.isCached();$('save').disabled=busy||!ready||store.isCached();}
 async function refresh(){state=await store.loadState();ready=true;render();}
-async function perform(action,message){if(busy)return false;busy=true;controls();try{state=await action();channel?.postMessage('changed');feedback(message);return true;}catch(e){showError(e);return false;}finally{busy=false;render();}}
+async function perform(action,message){if(busy)return false;busy=true;controls();try{state=await action();channel?.postMessage('changed');feedback(message);return true;}catch(e){if(e?.name==='ConstraintError'||String(e.message||'').includes('Bereits erfasst')){try{state=await store.loadState();pending=null;$('review').hidden=true;}catch{}}showError(e);return false;}finally{busy=false;render();}}
 function render(){
  const entries=state.entries,stats=statistics(entries);for(const key of ['total','karren','stadtbad','month'])$(`stat-${key}`).textContent=stats[key];
  $('export').disabled=!entries.length;$('reset').disabled=!entries.length||busy||store.isCached();$('reset').textContent=store.isGroup()?'Meine Einträge löschen':'Alle Einträge löschen';
