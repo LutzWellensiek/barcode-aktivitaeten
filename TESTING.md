@@ -58,3 +58,17 @@ App-Stand af849fcdd7ec81d342a4c8e201ae1407b1e33870, veröffentlicht am 15.10.202
 - Berechtigungsfehler und Anfragen werden automatisiert simuliert; ein echter iPhone-Berechtigungsdialog bleibt ein Gerätetest.
 
 [Erfolgreicher Test- und Deployment-Lauf](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38721864745)
+
+## Draußen / Google-Sheets-Integration, 15.10.2026
+
+Stand 482b556. Der bisherige Apps-Script-Link wurde als bestehende Bereitstellung auf Version 29 aktualisiert. Der App-Name lautet Draußen. Neue Druckbuchungen und der Druck-Erfolg sind entfernt; historische Daten bleiben lesbar.
+
+- Gemeinsame Bestandsdaten nach Bereitstellung in der echten Google-App geprüft: Anzahl, Gesamtersparnis und alle vier Aktivitätszähler stimmen mit dem vor der Umstellung erfassten Stand überein. Keine Testbuchungen oder Testlöschungen in der echten Tabelle vorgenommen.
+- Scannerfenster aus der echten Google-App geöffnet; manueller Testbarcode kam zur Prüfung zurück. Prüfung verworfen, Zähler unverändert. Die Kamera läuft in einem eigenen HTTPS-Fenster, weil Googles eingebettete Oberfläche keinen Kamerazugriff freigibt.
+- 18 Logik- und Backendprüfungen bestanden; erfolgreiche Linux-CI samt Veröffentlichung. Getestet werden unter anderem eindeutige Barcodes, wiederholte Schreibanfragen, bestehende Tabellenzeilen und Gruppeneinstellungen.
+- Nach Veröffentlichung: 35 Browserprüfungen bestanden, 3 bekannte Windows-WebKit-Einschränkungen übersprungen. Enthalten sind doppelte Eingaben über zwei Tabs, lokale Migration, native Google-RPC-Anbindung mit Testdaten, blockierter Browserspeicher im Google-Modus und Scanner-Rückgabe.
+- Darstellung bei 320, 390, 768 und 1280 Pixel geprüft: kein seitliches Überlaufen, keine JavaScript-Fehler.
+- Die frühere Aussage über rein lokale Daten gilt für den lokalen PWA-Modus. Im gemeinsamen Google-Modus werden Einträge ausdrücklich im vorhandenen Google Sheet gespeichert. Gruppenschreibvorgänge benötigen eine Verbindung; Rangliste, Erfolge, Dorf, Abstimmungen und Verlauf nutzen diesen Gruppenstand.
+- Physische iPhone-Kamera, tatsächlicher Safari-Berechtigungsdialog und Fokus auf gedruckten Tickets bleiben Gerätetests. Automatisierte Kamera- und Berechtigungstests verwenden simulierte Streams und isolierte Daten.
+
+[Erfolgreiche CI und Veröffentlichung der integrierten App](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38728059388)
