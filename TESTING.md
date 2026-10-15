@@ -43,3 +43,18 @@ Am Gerät noch prüfen:
 4. CSV einmal am iPhone exportieren und sichern. Bei Excel-Import Barcode-Spalte als Text behandeln.
 
 Alle Testeinträge wurden in isolierten Testbrowsern gespeichert, nicht in der Sammlung des Benutzers. Keine Ticketdaten werden an GitHub oder einen Anwendungsserver gesendet.
+
+## Nachtrag: Kameraberechtigung
+
+App-Stand af849fcdd7ec81d342a4c8e201ae1407b1e33870, veröffentlicht am 15.10.2026.
+
+- Die Kamera wird direkt im Klickhandler per getUserMedia angefragt, Audio bleibt aus. Der Scanner verwendet erst danach den freigegebenen Stream.
+- Bei verweigerter Berechtigung erscheinen Chrome-/Edge- und Safari-Hinweise sowie eine Schaltfläche für eine neue Anfrage. Eine dauerhaft gespeicherte Browser-Sperre muss der Benutzer selbst zurücksetzen.
+- Verspätet erteilte Berechtigung nach Abbrechen gibt den erhaltenen Stream wieder frei.
+- JavaScript und CSS verwenden versionierte URLs; der neue Service Worker wird ohne Cache-Verzögerung aktualisiert.
+- Lokal: 21 Browserprüfungen bestanden, 3 WebKit-Einschränkungen übersprungen.
+- Linux-CI: 23 Browserprüfungen und 7 Logiktests bestanden, 1 WebKit-Offline-Test übersprungen.
+- Nach Veröffentlichung: 9 gezielte Kamera-/Berechtigungs-/Offline-Prüfungen bestanden, 3 WebKit-Einschränkungen übersprungen.
+- Berechtigungsfehler und Anfragen werden automatisiert simuliert; ein echter iPhone-Berechtigungsdialog bleibt ein Gerätetest.
+
+[Erfolgreicher Test- und Deployment-Lauf](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38721864745)
