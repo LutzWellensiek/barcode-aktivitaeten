@@ -34,3 +34,8 @@ test('Google camera popup returns barcode to the original group page without sav
  const popupPromise=page.waitForEvent('popup');await page.locator('#start-camera').click();const popup=await popupPromise;await popup.waitForLoadState();expect(popup.url()).toContain('scanner=1');await expect(popup.locator('#person-name')).toBeHidden();await popup.locator('#barcode').fill('506605898833117757135878');await popup.getByRole('button',{name:'Barcode prüfen'}).click();await expect(page.locator('#review-barcode')).toHaveText('506605898833117757135878');await expect(page.locator('#stat-total')).toHaveText('0');await expect(page.locator('#review')).toBeVisible();
 });
 
+
+test('shared Google data still loads when iframe browser storage is blocked',async({page})=>{
+ await page.addInitScript(()=>{window.google={script:{run:{withSuccessHandler(success){return {withFailureHandler(){return {runAppRequest(){setTimeout(()=>success({ok:true,state:{entries:[{id:'old',person:'Anna',type:'karren',date:'2026-10-01',amountCents:1650,title:''}],votes:{},villages:{},revision:1}}),5);}};}};}}}};Object.defineProperty(indexedDB,'open',{configurable:true,value(){throw new DOMException('Third-party storage blocked','SecurityError');}});Storage.prototype.getItem=function(){throw new DOMException('Storage blocked','SecurityError');};});
+ await page.goto('./');await expect(page.locator('#storage-label')).toContainText('Google Sheets');await expect(page.locator('#stat-total')).toHaveText('1');await expect(page.locator('#total-saved')).toContainText('16,50');await expect(page.locator('#storage-error')).toBeHidden();
+});
