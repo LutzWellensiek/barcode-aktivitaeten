@@ -54,7 +54,7 @@ test('remembered name and current date on reload, return and midnight',async({pa
 });
 test('name restores from IndexedDB when localStorage is unavailable',async({page})=>{
  await page.addInitScript(()=>{Storage.prototype.getItem=function(){throw new DOMException('Blocked','SecurityError');};Storage.prototype.setItem=function(){throw new DOMException('Blocked','SecurityError');};});
- await ready(page);await page.locator('#person-name').fill('Anna');await page.locator('#manual-date').click();await page.reload();await expect(page.locator('#person-name')).toHaveValue('Anna');
+ await ready(page);await page.locator('#person-name').fill('Anna');await page.locator('#manual-date').click();await expect.poll(()=>page.evaluate(()=>new Promise((resolve,reject)=>{const request=indexedDB.open('barcode-aktivitaeten');request.onsuccess=()=>{const db=request.result,r=db.transaction('meta').objectStore('meta').get('person-name');r.onsuccess=()=>{resolve(r.result?.value);db.close();};r.onerror=()=>reject(r.error);};request.onerror=()=>reject(request.error);}))).toBe('Anna');await page.reload();await expect(page.locator('#person-name')).toHaveValue('Anna');
 });
 test('large chart supports zoom, dragging, pinch, legend and reset',async({page})=>{
  await ready(page);await page.locator('#person-name').fill('Anna');await quick(page,'karren');await page.locator('#person-name').fill('Ben');await quick(page,'stadtbad');await page.locator('#savings-chart').click();await expect(page.locator('#chart-dialog')).toBeVisible();await expect(page.locator('#chart-canvas svg')).toBeVisible();
