@@ -38,9 +38,9 @@ export function detectBarcode(input, year = new Date().getFullYear()) {
 export function statistics(entries, today = localDate()) {
   return {total:entries.length,karren:entries.filter(e=>e.type==='karren').length,stadtbad:entries.filter(e=>e.type==='stadtbad').length,month:entries.filter(e=>e.date.startsWith(today.slice(0,7))).length};
 }
-export function csv(entries) {
-  const quote = value => `"${String(value ?? '').replaceAll('"','""')}"`;
-  const rows = [['Besuchsdatum','Typ','Barcode','Erfasst am','Erkennung','Zuordnung','Produktkennung','Serienfeld','Zusatz']];
-  for (const e of entries) rows.push([e.date,e.type,e.barcode,e.scannedAt,e.detected.confidence,e.assignment,e.detected.product,e.detected.serial,e.detected.extra]);
-  return '\uFEFF' + rows.map(row=>row.map(quote).join(';')).join('\r\n')+'\r\n';
+export function csv(entries){
+ const quote=value=>'"'+String(value??'').replaceAll('"','""')+'"';const safe=value=>/^[=+@\-\t\r]/.test(String(value||''))?"'"+value:value;
+ const rows=[['Besuchsdatum','Name','Typ','Beschreibung','Wert EUR','Barcode','Erfasst am','Erkennung','Zuordnung','Produktkennung','Serienfeld','Zusatz']];
+ for(const e of entries)rows.push([e.date,safe(e.person),e.type,safe(e.title),((e.amountCents||0)/100).toFixed(2).replace('.',','),e.barcode,e.scannedAt,e.detected?.confidence,e.assignment,e.detected?.product,e.detected?.serial,e.detected?.extra]);
+ return '\uFEFF'+rows.map(row=>row.map(quote).join(';')).join('\r\n')+'\r\n';
 }

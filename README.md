@@ -1,97 +1,65 @@
-# Unterwegs · Ticket-Tagebuch
+# Draußen · Freebie Tracker
 
-Mobile, vollständig statische PWA zum Scannen und lokalen Loggen von Karren- und Stadtbad-Tickets. Deutsche Oberfläche, keine Anmeldung, kein Backend, keine Telemetrie. Kamera und Bilder werden ausschließlich im Browser verarbeitet.
+Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design, ergänzt um I25-Barcodescanner, Duplikatsperre, lokale PWA und CSV.
 
-**App:** https://lutzwellensiek.github.io/barcode-aktivitaeten/ · **Repository:** https://github.com/LutzWellensiek/barcode-aktivitaeten
+## Enthalten
 
-## Verwenden
+- Name merken, bekannte Personen auswählen, Aktivitätsdatum ändern.
+- Karren 16,50 €, Stadtbad 9,40 €, Freibier 4,50 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
+- I25 über Kamera, Foto oder Eingabe. Karren experimentell; Stadtbad wahrscheinlich mit Mod10. Barcode stets eindeutig, manuelle Schnellbuchungen separat mehrfach möglich.
+- Gemeinsame und persönliche Ersparnis, sieben Kategorien inklusive alter Archivdaten, Rangliste, Personen-Details, Überholhinweis, 1.000-€-Meilensteine.
+- Zwölf Erfolge inklusive Secret/Legende; sieben Dorfstufen von Zeltlager bis Dyson-Sphäre. Beim Freischalten werden keine Ersparnisse abgezogen.
+- Feature-Abstimmungen mit einer wechselbaren Stimme pro Person: Dark Mode, Push-Alarm, Statistiken, Mini-Spiel. Das sind Wünsche, keine als fertig dargestellten Zusatzfunktionen.
+- Kumulativer Spar-Verlauf pro Person mit ein-/ausblendbaren Linien und zugänglicher Datentabelle.
+- Such-/Personen-/Typfilter, Historie in Zehnerschritten, CSV aller Einträge, Einzel-Löschen und bestätigter Reset.
+- Neue Druckaufträge und Druck-Erfolg sind auf Wunsch entfernt. Vorhandene Druckwerte bleiben in Historie und Gesamtersparnis erhalten.
 
-1. Die GitHub-Pages-Adresse in Safari auf dem iPhone öffnen.
-2. **Kamera starten**, Zugriff erlauben und den vollständigen I25-Barcode waagerecht mit etwas weißem Rand erfassen. Zwei gleiche Lesungen öffnen die Prüfung. Alternativ Ticketfoto wählen oder die Ziffern inklusive führender Nullen eingeben.
-3. Erkennung und Besuchsdatum prüfen, gegebenenfalls Aktivität ändern, anschließend **Besuch speichern**.
-4. Optional Safari → Teilen → **Zum Home-Bildschirm**. Die App ist nach vollständigem Erstladen offline verfügbar. Bei neuen Versionen alle App-Tabs schließen und erneut öffnen.
+## Bestehender App-Link und Google Sheets
 
-Beim Antippen von **Kamera starten** fordert die App unmittelbar per `getUserMedia` die Kameraberechtigung an; Audio bleibt ausgeschaltet. Bei Ablehnung erscheint eine Anleitung für Chrome/Edge und Safari sowie **Kameraberechtigung erneut anfragen**. Bereits dauerhaft verweigerte Berechtigungen muss der Benutzer selbst in den Browser-Einstellungen auf Fragen/Zulassen ändern; die App darf diese Sperre nicht umgehen.
+Die vorhandene Apps-Script-Bereitstellung wird aktualisiert, keine neue Bereitstellung mit neuer URL angelegt. Das bestehende Blatt **Fahrten** und seine ersten vier Spalten bleiben erhalten, einschließlich deutscher Überschriften. Spalten E:H ergänzen stabile IDs, Barcode als Text, Aktivitätsdatum und Decodierung. Belegte fremde Zusatzspalten werden nicht überschrieben. Bestehende Votes werden weiterverwendet; Village speichert künftig gemeinsame Freischaltungen. Alte lokale Dorf-Freischaltungen werden auf dem jeweiligen Gerät weiter angezeigt.
 
-Die Kamera benötigt HTTPS; `http://localhost` ist für lokale Entwicklung ebenfalls zulässig. Eine HTTP-LAN-Adresse auf dem iPhone ist kein Ersatz für HTTPS. Die Rückkamera wird bevorzugt, Kamera läuft nur nach bewusstem Start und stoppt beim Verlassen der Seite. Bei verweigerter Berechtigung Safari-Seitenmenü → Website-Einstellungen → Kamera erlauben; die genaue Bezeichnung hängt von der iOS-Version ab.
+**apps-script/Code.gs** ist der fertige Backendcode, generiert aus dem gemeinsamen geprüften Datenmodell. **apps-script/Index.html** ist die kleine Oberfläche der bestehenden Google-App: Sie lädt HTML/CSS/JavaScript aus derselben GitHub-Pages-App und verwendet in Google automatisch google.script.run. Konten und Zugriffseinstellungen der vorhandenen Bereitstellung bleiben erhalten.
 
-## Daten und Zählung
+Wichtig beim Aktualisieren: Bereitstellen → Bereitstellungen verwalten → vorhandene aktive Bereitstellung bearbeiten → neue Version wählen → Bereitstellen. **Nicht „Neue Bereitstellung“ verwenden**, wenn die bisherige URL bleiben soll. Die vorherige Version kann über die Versionsauswahl wiederhergestellt werden.
 
-- IndexedDB-Datenbank `barcode-aktivitaeten`, Store `entries`, **Barcode als eindeutiger Primärschlüssel**. `add`, kein überschreibendes `put`: Auch konkurrierende Tabs können kein Duplikat erzeugen. Erfolgreich gespeichert wird erst nach abgeschlossener Transaktion gemeldet.
-- Es werden **eindeutige Tickets** gezählt. Zwei verschiedene Tickets am selben Tag zählen zweimal. Nach bewusstem Löschen darf ein Barcode erneut gespeichert werden.
-- Gespeichert: exakte Barcode-Zeichenfolge, Besuchsdatum, ausgewählter Typ, Scanzeit, Erkennungsdetails, manuelle oder vorgeschlagene Zuordnung.
-- Filter, Suche, Statistik für Gesamt/Karren/Stadtbad/aktuellen Monat, CSV aller Einträge, Einzel-Löschen und Reset mit ausdrücklichem Bestätigungsdialog.
-- Daten bleiben pro Browser und Website auf dem Gerät. Browserdaten löschen, Privatmodus oder Speicherbereinigung können Daten entfernen. Keine Synchronisierung und kein automatisches Backup; regelmäßig CSV exportieren. Safari und Home-Bildschirm-App können getrennte Speicher nutzen. Die App besitzt aktuell keinen CSV-Import.
-- CSV: UTF-8 mit BOM, Semikolon, ISO-Datum, sämtliche Barcode-Ziffern unverändert. In Excel die Barcode-Spalte beim **Import als Text** behandeln, sonst gehen bei langen Zahlen Genauigkeit/führende Nullen verloren.
-- GitHub liefert nur die statische App aus und erhält dabei die üblichen Webanfragen; Ticketdaten, Fotos und Kamerabilder werden nicht übertragen. Keine externen Fonts/CDNs zur Laufzeit.
+Google sperrt Kamera im äußeren Apps-Script-Rahmen. Der Kameraknopf öffnet daher ein separates Scannerfenster auf GitHub Pages. Dieses gibt ausschließlich den Barcode mit einer einmaligen Sitzungskennung per postMessage an die ursprüngliche App zurück. Herkunft und Kennung werden geprüft. Erst dort werden Person, Datum und Betrag bestätigt und in Sheets gespeichert. Die Google-App-Adresse bleibt bestehen. Bei Popup-Sperre gibt es einen sichtbaren Scanner-Link; Foto und manuelle Eingabe bleiben direkt nutzbar.
 
-## Experimentelle Formaterkennung
+Für Google-Datenzugriff sind nur die bereits genutzten Tabellenrechte erforderlich; die statischen Dateien werden vom Browser geladen, nicht über zusätzliche UrlFetch-Berechtigungen.
 
-Die Regeln stammen aus dem bereitgestellten Reverse-Engineering-Chat. Sie sind keine offizielle Spezifikation und keine Ticket-Gültigkeitsprüfung.
+## GitHub Pages und lokaler Modus
 
-### Stadtbad
+[Statische App](https://lutzwellensiek.github.io/barcode-aktivitaeten/) · [Repository](https://github.com/LutzWellensiek/barcode-aktivitaeten)
 
-Genau 22 Dezimalziffern mit gültiger Modulo-10-Prüfziffer: 21 Nutzstellen, Gewichtung von rechts beginnend mit 3, dann 1, wiederholt. Dies bedeutet **wahrscheinlich Stadtbad**, nicht nachgewiesene Herkunft. Das Besuchsdatum ist nicht decodiert und wird mit dem heutigen lokalen Datum vorbelegt.
+Außerhalb der Google-App arbeitet die PWA standardmäßig lokal. IndexedDB-Version 2 übernimmt vorhandene Barcode-Einträge verlustfrei. Bislang namenlose Einträge bleiben ausdrücklich unzugeordnet und können einer Person zugeordnet werden. Die Standardwerte für Karren/Stadtbad werden ergänzt. Daten eines Geräts werden nicht automatisch in die gemeinsame Gruppe hochgeladen.
 
-### Karren
+Optional kann eine externe Gruppenverbindung eingerichtet werden. Diese ist im Backend standardmäßig deaktiviert. Dazu muss der Betreiber in den Skripteigenschaften GROUP_ACCESS_KEY (mindestens 16 zufällige Zeichen) und gegebenenfalls ALLOWED_ORIGINS konfigurieren. Der Benutzer trägt Web-App-Adresse und Schlüssel in der PWA unter „Gemeinsame Gruppe & Verbindung“ ein. Der Schlüssel wird lokal auf dem Gerät gespeichert und nur im POST-Body an das gewählte Google-Endpoint gesendet; keine Zugangsdaten im Repository oder URL. Ohne Antwort wird ein Fehler angezeigt. Ein zuletzt geladener Gruppenstand ist lokal zwischengespeichert; Änderungen an der Gruppe benötigen Internet. Die bestehende Google-App benötigt diesen zusätzlichen Schlüssel nicht.
 
-Genau 24 Dezimalziffern als `BigInt`, kleiner als 2^80:
+Namen sind Zuordnungen innerhalb einer vertrauensvollen Gruppe, keine persönlichen Benutzerkonten. Wie bisher kann jemand einen anderen Namen eingeben. Im Gruppenmodus werden in der Oberfläche nur Einträge des ausgewählten Namens gelöscht und ein Reset betrifft nur diesen Namen. Lokaler Reset leert die lokale Sammlung.
 
-```
-9 Bit Tag | 7 Bit Monat | 40 Bit Produkt | 14 Bit Serie | 10 Bit Zusatz
-Tag   = ((n >> 71) & 0x1ff) - 210
-Monat = (((n >> 64) & 0x7f) + 9) / 8
-Produkt = (n >> 24) & ((1 << 40) - 1)
-Serie   = (n >> 10) & 0x3fff
-Zusatz  = n & 0x3ff
-```
+## Kamera, Datenschutz und Export
 
-Tag und Monat müssen ganzzahlig sein und ein gültiges Kalenderdatum ergeben. Bisher bekannte Produktblöcke: `0x292A8BA1F7` (Berg- & Talfahrt) und `0x1FAAABA1F7` (Abend). Bei unbekannter Produktkennung wird die zusätzliche Unsicherheit angezeigt. Beobachteter Zusammenhang der Serie: `(BSNR-Endnummer & 0x3fff) XOR 0x2000`; daraus lässt sich **nicht** die vollständige aufgedruckte Ticketnummer rekonstruieren.
+Beim Antippen wird die Kamera direkt per getUserMedia angefragt, ohne Audio. Eine dauerhaft gespeicherte Sperre muss im Browser auf Fragen/Zulassen geändert werden; die App kann sie nicht umgehen. HTTPS ist erforderlich, localhost ist zum Entwickeln zulässig. Kamera stoppt nach erfolgreichem Scan sowie beim Verlassen der Seite; zwei gleiche Lesungen bestätigen einen Kamerascan.
 
-**Jahr nicht decodiert.** Das aktuelle Jahr wird nur vorgeschlagen und muss beim Speichern geprüft werden. Das Modell wurde vor allem mit September-/Oktober-Beispielen 2026 abgeleitet; insbesondere Monat/Jahreswechsel und weitere Produkte sind nicht bestätigt. Die Bedeutung der letzten 10 Bit ist unbekannt; kein belastbarer Karren-Prüfsummencheck. Frühe Annahmen zum fortlaufenden Tageszähler und konstanten 47-Bit-Block wurden durch die neuere 9/7/40/14/10-Aufteilung ersetzt. Abgeleitete, nicht sicher gelesene Tickets werden nicht als bestätigte Testbeispiele verwendet.
+Fotos und Kamerabilder werden auf dem Gerät verarbeitet. Gespeichert werden Aktivitäten, Werte, Namen und gegebenenfalls der Barcode; keine Bilder. Keine Telemetrie oder externen Fonts. CSV ist UTF-8 mit BOM und Semikolon. Die Barcode-Spalte beim Excel-Import als Text behandeln, damit lange Zahlen und führende Nullen unverändert bleiben. Namen/Beschreibungen werden vor Tabellen-/CSV-Formelinjektion geschützt.
 
-Unpassende Barcodes bleiben unbekannt und können bewusst manuell zugeordnet werden. Karren-Heuristik wird immer als experimentell markiert. Keine Barcode-Erzeugung und keine Prüfung gegen ein Ticketsystem.
+Die Barcode-Erkennung ist keine offizielle Spezifikation oder Gültigkeitsprüfung: Stadtbad = 22 Ziffern mit Mod10; Karren = experimentelle 80-Bit-Aufteilung 9/7/40/14/10. Tag = oberste 9 Bit minus 210; Monat = (nächste 7 Bit + 9)/8. Bekannte Produkte 292A8BA1F7 und 1FAAABA1F7. Jahr und letzte zehn Bit unbekannt. Datum stets prüfen.
 
-## Entwicklung
+## Entwicklung und Tests
 
-Node.js **24 oder neuer** empfohlen, passend zur Scannerbibliothek.
+Node.js 24 empfohlen.
 
-```
-npm ci
-npm test
-npm run build
-npm start
-```
+    npm ci
+    npm test
+    npm run build
+    npm start
 
-Dann `http://localhost:4173` öffnen. `dist/` enthält die direkt auslieferbare statische App. Alle URLs sind relativ, damit GitHub Pages unter einem Repository-Unterpfad funktioniert.
+Dann http://127.0.0.1:4173 öffnen. Build erzeugt dist/ sowie apps-script/Code.gs. Versionierte Assets und Service Worker verhindern alte Cache-Versionen. PWA auf iPhone in Safari über Teilen → Zum Home-Bildschirm installieren.
 
-```
-npx playwright install chromium webkit
-npm run test:e2e
-```
+    npx playwright install chromium webkit
+    npm run test:e2e
 
-Tests: bekannte Heuristik-Beispiele, Prüfziffern, unplausible Daten, Zifferngenauigkeit, echte I25-Bilddecodierung, Browser-Datenbank und Neuladen, parallele Duplikate, CSV, Filter, Löschen/Reset, Offline-Neuladen, mobile Breite, simulierte Kamera-Berechtigung und Track-Freigabe. Chromium-Mobilprofil sowie WebKit-iPhone-Profil. `BASE_URL=https://…/` führt dieselben Tests gegen das Deployment aus, in isolierten Testbrowsern.
+Die Browserprüfungen laufen mit Chromium-Mobilprofil und WebKit-iPhone-Profil. Windows-WebKit besitzt keine Canvas-Kamerastreams; Playwright-WebKit scheitert bei Offline-Neuladen mit Service Worker. Diese jeweiligen Tests sind ausdrücklich übersprungen, Chromium prüft die Pfade. Ein physischer iPhone-Test bleibt erforderlich. Echte Gruppendaten werden nicht für automatisierte Testbuchungen verwendet.
 
-WebKit-Emulation ersetzt **keinen physischen iPhone-Test**: reale Safari-Berechtigungsdialoge, Autofokus, Papierqualität, Reflexionen und die Home-Bildschirm-Installation bleiben am Gerät zu prüfen. Die Kamera-Erfolgs-/Fehlerpfade werden automatisiert mit Test-Medien bzw. simuliertem Berechtigungsfehler geprüft. Windows-WebKit stellt keine Canvas-Kamerastreams bereit. Die Offline-Emulation von Playwright-WebKit scheitert auch unter Linux intern am Neuladen mit Service Worker; diese jeweilige Prüfung wird ausdrücklich übersprungen. Chromium prüft beide Pfade vollständig; die Linux-CI führt die übrigen WebKit-Prüfungen aus, soweit die Testengine die Medienfunktionen unterstützt.
+Struktur: src/core.js (Barcode), freebies.js (Preise/Erfolge/Statistik), db.js (atomare lokale Speicherung/Migration), store.js + group-bridge.js (gemeinsame Daten), camera-ui.js (Kamera und Rückgabe), dashboard.js (Gruppenansichten), app.js (Ablauf), apps-script/ (Google-Anbindung), tests/ (Kernlogik, simuliertes Backend, Browser).
 
-## Struktur
-
-```
-src/           App, Formaterkennung, IndexedDB, Scanner
-public/        HTML, CSS, Manifest, SVG-Icon
-scripts/       Build, PNG-Icons, lokaler statischer Server
-tests/         Kernlogik und Browser-Integrationstests
-dist/          auslieferbare App inklusive gebündeltem ZXing und Service Worker
-.github/       CI: Tests, Build, Chromium/WebKit, GitHub Pages
-```
-
-GitHub Pages: Repository → Settings → Pages → Source: **GitHub Actions**. Jeder Push auf `main` testet, baut und veröffentlicht. Die CI nutzt minimale Pages-/OIDC-Rechte und eine Deployment-Umgebung. Der Service Worker speichert nur App-Dateien; Ticketdaten liegen getrennt in IndexedDB.
-
-## Verwendete Quellen
-
-- [ZXing Browser: API und Kamerascanner](https://github.com/zxing-js/browser)
-- [ZXing Library: Barcodeformate und ITF](https://github.com/zxing-js/library)
-- [MDN: getUserMedia und sichere Kontexte](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
-- [GitHub: Pages mit einem eigenen Workflow](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
-
-ZXing wird unter Apache-2.0 verwendet; Hinweise stehen zusätzlich in `THIRD_PARTY_NOTICES.md` und im Bundle.
+[Google: HTML-Service und Serverkommunikation](https://developers.google.com/apps-script/guides/html/communication) · [Google: Web-Apps](https://developers.google.com/apps-script/guides/web) · [ZXing](https://github.com/zxing-js/browser). Lizenzen siehe THIRD_PARTY_NOTICES.md und dist/licenses/.

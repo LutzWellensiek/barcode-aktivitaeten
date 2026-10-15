@@ -1,107 +1,58 @@
 import {detectBarcode,normalizeBarcode,localDate,validDate,statistics,csv} from './core.js';
-import {allEntries,getEntry,addEntry,deleteEntry,clearEntries} from './db.js';
-import {createReader,cameraMessage} from './scanner.js';
-const $=id=>document.getElementById(id);
-const typeNames={karren:'Karren',stadtbad:'Stadtbad',other:'Andere Aktivität'};
-let entries=[],pending=null,controls=null,reader=null,cameraGeneration=0,cameraStarting=false,cameraStream=null,storageReady=false;
-const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('barcode-entries'):null;
-const displayDate=value=>new Intl.DateTimeFormat('de-DE').format(new Date(`${value}T12:00:00`));
-function feedback(message,error=false){$('feedback').textContent=message;$('feedback').classList.toggle('error',error);$('feedback').hidden=false;}
-function storageError(error){$('storage-error').hidden=false;$('storage-error').textContent=`Browser-Speicher nicht verfügbar: ${error?.message || 'Unbekannter Fehler'}. Es wurde nichts als gespeichert bestätigt. Bitte Browser-Speicher freigeben bzw. privaten Modus verlassen und erneut laden.`;}
-async function refresh(){entries=await allEntries();entries.sort((a,b)=>b.date.localeCompare(a.date)||b.scannedAt.localeCompare(a.scannedAt));render();}
+import {TYPES,createEntry,cleanName,personKey,money,parseMoney,groupStats} from './freebies.js';
+import * as store from './store.js';
+import {renderDashboard,el,details} from './dashboard.js';
+import {setupCamera} from './camera-ui.js';
+import {trustedGoogleOrigin} from './group-bridge.js';
+const scannerOnly=new URLSearchParams(location.search).get('scanner')==='1';
+const $=id=>document.getElementById(id),channel=typeof BroadcastChannel==='function'?new BroadcastChannel('barcode-entries'):null;
+let state={entries:[],votes:{},villages:{}},pending=null,busy=false,ready=false,attemptedManual=null,toastTimer,historyLimit=10;
+function dateLabel(value){return validDate(value)?new Intl.DateTimeFormat('de-DE').format(new Date(value+'T12:00:00')):'Datum unbekannt';}
+function name(){return cleanName($('person-name').value);}
+function feedback(message,error=false){$('feedback').textContent=message;$('feedback').classList.toggle('error',error);$('feedback').hidden=false;$('toast').textContent=message;$('toast').classList.toggle('error',error);$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500);}
+function showError(e){const message=e?.name==='ConstraintError'?'Bereits erfasst. Dieser Barcode wird nicht doppelt gezählt.':e.message||'Speichern fehlgeschlagen. Bitte erneut versuchen.';feedback(message,true);}
+function confirmAction(title,message,label='Endgültig löschen'){return new Promise(resolve=>{const d=$('confirm-dialog');$('confirm-title').textContent=title;$('confirm-message').textContent=message;d.querySelector('button[value=confirm]').textContent=label;d.returnValue='';d.addEventListener('close',()=>resolve(d.returnValue==='confirm'),{once:true});d.showModal();});}
+function controls(){for(const button of document.querySelectorAll('[data-mutation]'))button.disabled=button.dataset.baseDisabled==='true'||busy||store.isCached();$('save').disabled=busy||!ready||store.isCached();}
+async function refresh(){state=await store.loadState();ready=true;render();}
+async function perform(action,message){if(busy)return false;busy=true;controls();try{state=await action();channel?.postMessage('changed');feedback(message);return true;}catch(e){showError(e);return false;}finally{busy=false;render();}}
 function render(){
-  const stats=statistics(entries);for(const key of ['total','karren','stadtbad','month']) $(`stat-${key}`).textContent=stats[key];
-  $('export').disabled=entries.length===0;$('reset').disabled=entries.length===0;
-  const filter=$('filter').value,search=$('search').value.replace(/\s/g,'');
-  const visible=entries.filter(e=>(filter==='all'||e.type===filter)&&e.barcode.includes(search));
-  $('history-count').textContent=entries.length?`${visible.length} von ${entries.length} Tickets · nach Besuchsdatum sortiert`:'';
-  $('entries').replaceChildren();$('empty').hidden=visible.length>0;
-  $('empty').querySelector('h3').textContent=entries.length?'Keine passenden Tickets.':'Hier ist Platz für Erlebnisse.';
-  $('empty').querySelector('p').textContent=entries.length?'Versuche einen anderen Filter.':'Dein erstes gescanntes Ticket macht den Anfang.';
-  for(const entry of visible){
-    const article=document.createElement('article');article.className='entry';
-    const icon=document.createElement('span');icon.className=`entry-icon ${entry.type==='stadtbad'?'water':''}`;icon.textContent=entry.type==='karren'?'↟':entry.type==='stadtbad'?'≈':'•';icon.setAttribute('aria-hidden','true');
-    const body=document.createElement('div');const title=document.createElement('h3');title.textContent=typeNames[entry.type];
-    const date=document.createElement('time');date.dateTime=entry.date;date.textContent=displayDate(entry.date);
-    const code=document.createElement('code');code.textContent=entry.barcode;
-    const tag=document.createElement('span');tag.className='tag';tag.textContent=entry.assignment==='manual'?'Manuell zugeordnet':entry.detected.confidence==='experimentell'?'Karren · experimentell':'Stadtbad · wahrscheinlich';
-    const scanned=document.createElement('p');scanned.className='hint';scanned.textContent=`Erfasst ${new Intl.DateTimeFormat('de-DE',{dateStyle:'short',timeStyle:'short'}).format(new Date(entry.scannedAt))}`;
-    body.append(title,date,code,tag,scanned);
-    const remove=document.createElement('button');remove.className='delete-entry';remove.textContent='×';remove.type='button';remove.setAttribute('aria-label',`Eintrag ${entry.barcode} löschen`);
-    remove.addEventListener('click',async()=>{if(await confirmAction('Eintrag löschen?',`${typeNames[entry.type]} vom ${displayDate(entry.date)} wird aus deiner Sammlung entfernt.`)){try{await deleteEntry(entry.barcode);channel?.postMessage('changed');await refresh();feedback('Eintrag gelöscht.');}catch(e){storageError(e);}}});
-    article.append(icon,body,remove);$('entries').append(article);
-  }
+ const entries=state.entries,stats=statistics(entries);for(const key of ['total','karren','stadtbad','month'])$(`stat-${key}`).textContent=stats[key];
+ $('export').disabled=!entries.length;$('reset').disabled=!entries.length||busy||store.isCached();$('reset').textContent=store.isGroup()?'Meine Einträge löschen':'Alle Einträge löschen';
+ $('storage-label').textContent=store.isGroup()?'Gemeinsam · Google Sheets':'Lokal · dieses Gerät';$('connection-status').textContent=store.isGroup()?(store.isCached()?'Offline / nicht erreichbar · letzter geladener Gruppenstand. Zum Speichern bitte wieder verbinden.':'Mit eurer Google-Sheets-Gruppe verbunden.'):'Noch keine Gruppenverbindung. Einträge werden auf diesem Gerät gespeichert.';
+ $('disconnect').hidden=!store.isGroup()||store.isHosted();$('group-connect-fields').hidden=store.isGroup();
+ const names=groupStats(entries).leaderboard.map(p=>p.name);$('known-people').replaceChildren(...names.map(n=>{const o=el('option');o.value=n;return o;}));
+ renderDashboard(state,$('person-name').value,{group:store.isGroup(),blocked:busy||store.isCached(),vote:id=>{try{void perform(()=>store.vote(name(),id),'Deine Stimme wurde gespeichert.');}catch(e){showError(e);}},unlock:id=>{try{void perform(()=>store.unlock(name(),id),'Gebäude freigeschaltet.');}catch(e){showError(e);}}});
+ renderHistory();controls();
 }
-function confirmAction(title,message){return new Promise(resolve=>{const dialog=$('confirm-dialog');$('confirm-title').textContent=title;$('confirm-message').textContent=message;dialog.returnValue='';dialog.addEventListener('close',()=>resolve(dialog.returnValue==='confirm'),{once:true});dialog.showModal();});}
-async function reviewCode(input){
-  try{
-    if(!storageReady)throw new Error('Browser-Datenbank ist nicht bereit. Bitte neu laden.');
-    const code=normalizeBarcode(input);const existing=await getEntry(code);
-    if(existing){pending=null;$('review').hidden=true;feedback(`Bereits erfasst: ${typeNames[existing.type]}, ${displayDate(existing.date)}. Dieser Barcode wird nicht doppelt gezählt.`);return;}
-    const detected=detectBarcode(code);pending=detected;
-    $('review-title').textContent=detected.label;$('confidence').textContent=detected.confidence;$('review-message').textContent=detected.message;$('review-barcode').textContent=code;
-    $('activity').value=detected.type==='unknown'?'':detected.type;
-    $('visit-date').value=detected.suggestedDate || localDate();
-    $('decode-details').hidden=detected.type!=='karren';
-    $('decode-output').textContent=detected.type==='karren'?`Tagcode: ${detected.dayCode}\nMonatcode: ${detected.monthCode}\nProdukt: 0x${detected.product}\nSerienfeld: ${detected.serial}\nZusatz (ungeklärt): ${detected.extra}\nJahr: nicht decodiert`:'';
-    $('feedback').hidden=true;$('review').hidden=false;$('review').scrollIntoView({behavior:'smooth',block:'nearest'});
-  }catch(e){feedback(e.message,true);}
+function renderHistory(){
+ const type=$('filter').value,q=$('search').value.trim().toLocaleLowerCase('de-DE'),person=$('person-filter').value;
+ const entries=[...state.entries].filter(e=>(type==='all'||e.type===type)&&(person!=='mine'||personKey(e.person)===personKey($('person-name').value))&&(!q||[e.barcode,e.person,e.title,TYPES[e.type]?.name].some(v=>String(v||'').toLocaleLowerCase('de-DE').includes(q)))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.scannedAt||'').localeCompare(a.scannedAt||''));
+ $('history-count').textContent=state.entries.length?`${Math.min(entries.length,historyLimit)} von ${entries.length} Aktivitäten · nach Besuchsdatum sortiert`:'';$('entries').replaceChildren();$('empty').hidden=entries.length>0;$('empty').querySelector('h3').textContent=state.entries.length?'Keine passenden Aktivitäten.':'Hier ist Platz für Erlebnisse.';$('empty').querySelector('p').textContent=state.entries.length?'Versuche einen anderen Filter.':'Eure erste Aktivität macht den Anfang.';
+ $('history-more').hidden=entries.length<=historyLimit;for(const e of entries.slice(0,historyLimit)){const article=el('article',undefined,'entry'),icon=el('span',TYPES[e.type]?.icon||'•','entry-icon '+(e.type==='stadtbad'?'water':'')),body=el('div');icon.setAttribute('aria-hidden','true');body.append(el('h3',(TYPES[e.type]?.name||e.type)+(e.title?' · '+e.title:'')));const time=el('time',dateLabel(e.date));if(e.date)time.dateTime=e.date;body.append(time,el('p',`${e.person||'Noch keiner Person zugeordnet'} · ${money(e.amountCents)}`,'entry-person'));if(e.barcode)body.append(el('code',e.barcode));if(e.detected)body.append(el('span',e.assignment==='manual'?'Manuell zugeordnet':e.detected.confidence==='experimentell'?'Karren · experimentell':'Stadtbad · wahrscheinlich','tag'));
+  if(e.scannedAt&&!Number.isNaN(Date.parse(e.scannedAt)))body.append(el('p','Erfasst '+new Intl.DateTimeFormat('de-DE',{dateStyle:'short',timeStyle:'short'}).format(new Date(e.scannedAt)),'hint'));
+  if(!e.person){const assign=el('button','Meinem Namen zuordnen','text-button');assign.type='button';assign.dataset.mutation='';assign.addEventListener('click',async()=>{try{const n=name();if(await confirmAction('Eintrag zuordnen?',`Dieser Eintrag wird ${n} zugeordnet.`,'Zuordnen'))await perform(()=>store.assign(e.id,n),'Eintrag zugeordnet.');}catch(error){showError(error);}});body.append(assign);}
+  const remove=el('button','×','delete-entry');remove.type='button';remove.dataset.mutation='';remove.setAttribute('aria-label',`Eintrag ${e.barcode||e.id} löschen`);if(store.isGroup()&&personKey(e.person)!==personKey($('person-name').value))remove.hidden=true;
+  remove.addEventListener('click',async()=>{if(await confirmAction('Eintrag löschen?',`${TYPES[e.type]?.name||e.type} vom ${dateLabel(e.date)} wird entfernt.`)){await perform(()=>store.remove(e.id,$('person-name').value),'Eintrag gelöscht.');}});article.append(icon,body,remove);$('entries').append(article);
+ }
 }
-$('barcode-form').addEventListener('submit',e=>{e.preventDefault();void reviewCode($('barcode').value);});
-$('cancel-review').addEventListener('click',()=>{pending=null;$('review').hidden=true;});
-$('save-form').addEventListener('submit',async e=>{
-  e.preventDefault();if(!pending)return;const type=$('activity').value,date=$('visit-date').value;
-  if(!typeNames[type]||!validDate(date)){feedback('Bitte Aktivität und ein gültiges Besuchsdatum wählen.',true);return;}
-  const detected=pending;$('save').disabled=true;
-  try{
-    await addEntry({barcode:detected.barcode,type,date,scannedAt:new Date().toISOString(),detected,assignment:type===detected.type?'suggested':'manual'});
-    pending=null;$('review').hidden=true;$('barcode').value='';channel?.postMessage('changed');await refresh();feedback(`${typeNames[type]} vom ${displayDate(date)} gespeichert. Eine kleine Auszeit mehr.`);
-  }catch(error){if(error?.name==='ConstraintError'){feedback('Bereits erfasst. Dieser Barcode wird nicht doppelt gezählt.');pending=null;$('review').hidden=true;await refresh();}else{storageError(error);}}
-  finally{$('save').disabled=false;}
-});
-$('filter').addEventListener('change',render);$('search').addEventListener('input',render);
-$('reset').addEventListener('click',async()=>{if(await confirmAction('Alle Einträge löschen?',`${entries.length} Tickets werden endgültig aus diesem Browser gelöscht. Exportiere deine Sammlung vorher als CSV, wenn du sie behalten möchtest.`)){try{await clearEntries();pending=null;$('review').hidden=true;channel?.postMessage('changed');await refresh();feedback('Deine Sammlung wurde geleert.');}catch(e){storageError(e);}}});
-$('export').addEventListener('click',()=>{const blob=new Blob([csv(entries)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`unterwegs-${localDate()}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
-function stopCamera(){
-  cameraGeneration++;cameraStarting=false;controls?.stop();controls=null;
-  for(const stream of new Set([cameraStream,$('camera').srcObject]))stream?.getTracks().forEach(track=>track.stop());cameraStream=null;$('camera').srcObject=null;
-  $('start-camera').hidden=false;$('start-camera').disabled=false;$('stop-camera').hidden=true;$('camera-placeholder').hidden=false;
-}
-$('stop-camera').addEventListener('click',()=>{stopCamera();$('camera-status').textContent='Kamera gestoppt. Du kannst sie jederzeit neu starten.';});
-async function startCamera(){
-  if(cameraStarting||controls)return;
-  if(!window.isSecureContext){$('camera-status').textContent='Die Kamera benötigt HTTPS. Bitte die veröffentlichte HTTPS-Adresse öffnen. Manuelle Eingabe bleibt verfügbar.';return;}
-  if(!navigator.mediaDevices?.getUserMedia){$('camera-status').textContent='Dieser Browser bietet keinen Kamerazugriff. Bitte in Safari öffnen oder Barcode eintippen.';return;}
-  $('camera-permission-help').hidden=true;cameraStarting=true;const generation=++cameraGeneration;$('start-camera').disabled=true;$('stop-camera').hidden=false;$('camera-status').textContent='Bitte im Browser den Kamerazugriff zulassen. Die Berechtigungsanfrage ist geöffnet oder wird gerade geprüft …';
-  let last='',hits=0,lastTime=0;
-  try{
-    // Call from the tap handler, before waiting for reader setup or other work.
-    const requestedStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
-    if(generation!==cameraGeneration){requestedStream.getTracks().forEach(track=>track.stop());return;}
-    cameraStream=requestedStream;reader=createReader();
-    const nextControls=await reader.decodeFromStream(requestedStream,$('camera'),(result,error,scanControls)=>{
-      if(generation!==cameraGeneration){scanControls?.stop();return;}
-      if(!result)return;const code=result.getText(),now=Date.now();
-      hits=code===last&&now-lastTime<2500?hits+1:1;last=code;lastTime=now;
-      if(hits>=2){scanControls.stop();stopCamera();$('camera-status').textContent='Barcode erkannt. Bitte Angaben prüfen und speichern.';void reviewCode(code);}
-    });
-    if(generation!==cameraGeneration){nextControls.stop();return;}
-    controls=nextControls;cameraStarting=false;$('start-camera').hidden=true;$('camera-placeholder').hidden=true;$('camera-status').textContent='Kamera aktiv. Barcode ruhig und waagerecht ins Bild halten. Zwei gleiche Lesungen bestätigen den Scan.';
-  }catch(error){if(generation===cameraGeneration){stopCamera();$('camera-status').textContent=cameraMessage(error);$('camera-permission-help').hidden=!['NotAllowedError','PermissionDeniedError','SecurityError'].includes(error?.name);}}
-}
-$('start-camera').addEventListener('click',startCamera);
-$('retry-camera').addEventListener('click',startCamera);
-$('photo').addEventListener('change',async e=>{
-  const file=e.target.files?.[0];if(!file)return;stopCamera();const url=URL.createObjectURL(file);$('camera-status').textContent='Ticketfoto wird auf diesem Gerät gelesen …';
-  try{const result=await createReader().decodeFromImageUrl(url);await reviewCode(result.getText());$('camera-status').textContent='Barcode aus Foto gelesen. Bitte Angaben prüfen.';}
-  catch{$('camera-status').textContent='Kein vollständiger I25-Barcode im Foto erkannt. Bitte scharfes Foto mit weißem Rand um den gesamten Barcode wählen oder die Nummer eingeben.';}
-  finally{URL.revokeObjectURL(url);e.target.value='';}
-});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){stopCamera();$('camera-status').textContent='Kamera pausiert. Zum Fortsetzen erneut starten.';}});
-window.addEventListener('pagehide',stopCamera);
-channel?.addEventListener('message',()=>void refresh().catch(storageError));
-window.addEventListener('focus',()=>{if(storageReady)void refresh().catch(storageError);});
-function networkStatus(){$('network').textContent=navigator.onLine?'Bereit für deine Auszeit':'Offline · lokal bereit';}
-window.addEventListener('online',networkStatus);window.addEventListener('offline',networkStatus);networkStatus();
-try{await refresh();storageReady=true;}catch(e){storageError(e);$('save').disabled=true;}
-if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(async registration=>{void registration.update().catch(()=>{});await navigator.serviceWorker.ready;$('offline-status').textContent='Offline bereit. Die App und der Scanner sind lokal gespeichert.';}).catch(()=>{$('offline-status').textContent='Offline-Speicher konnte nicht eingerichtet werden. Online kannst du die App weiterhin verwenden.';});}else{$('offline-status').textContent='Dieser Browser unterstützt die Offline-Installation nicht.';}
+async function reviewCode(input){try{if(scannerOnly){const code=normalizeBarcode(input),session=new URLSearchParams(location.hash.slice(1)),target=session.get('returnOrigin'),token=session.get('token');if(!window.opener||!token||!(target===location.origin||trustedGoogleOrigin(target)))throw new Error('Bitte den Scanner aus eurer Gruppen-App öffnen.');window.opener.postMessage({channel:'draussen-scan',token,barcode:code},target);$('camera-status').textContent='Barcode an eure App übergeben. Du kannst dieses Fenster schließen.';setTimeout(()=>window.close(),200);return;}if(!ready)throw new Error('Der Speicher ist noch nicht bereit. Bitte erneut versuchen.');const code=normalizeBarcode(input),existing=state.entries.find(e=>e.barcode===code);if(existing){pending=null;$('review').hidden=true;feedback(`Bereits erfasst: ${TYPES[existing.type]?.name}, ${dateLabel(existing.date)}${existing.person?' · '+existing.person:''}. Dieser Barcode wird nicht doppelt gezählt.`);return;}pending=detectBarcode(code);$('review-title').textContent=pending.label;$('confidence').textContent=pending.confidence;$('review-message').textContent=pending.message;$('review-barcode').textContent=code;$('activity').value=pending.type==='unknown'?'':pending.type;$('visit-date').value=pending.suggestedDate||$('manual-date').value;$('scan-value').value=TYPES[pending.type]?.cents!==undefined?(TYPES[pending.type].cents/100).toFixed(2):'0.00';$('decode-details').hidden=pending.type!=='karren';$('decode-output').textContent=pending.type==='karren'?`Tagcode: ${pending.dayCode}\nMonatcode: ${pending.monthCode}\nProdukt: 0x${pending.product}\nSerienfeld: ${pending.serial}\nZusatz (ungeklärt): ${pending.extra}\nJahr: nicht decodiert`:'';$('review').hidden=false;$('feedback').hidden=true;updateScanValue();$('review').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){showError(e);}}
+function updateScanValue(){const t=$('activity').value,cents=TYPES[t]?.cents;$('scan-value').readOnly=cents!==undefined;if(cents!==undefined)$('scan-value').value=(cents/100).toFixed(2);}
+$('barcode-form').addEventListener('submit',e=>{e.preventDefault();void reviewCode($('barcode').value);});$('activity').addEventListener('change',updateScanValue);$('cancel-review').addEventListener('click',()=>{pending=null;$('review').hidden=true;});
+$('save-form').addEventListener('submit',async e=>{e.preventDefault();if(!pending||busy)return;try{const detected=pending,entry=createEntry({person:name(),type:$('activity').value,date:$('visit-date').value,amountCents:parseMoney($('scan-value').value),barcode:detected.barcode,detected,assignment:detected.type===$('activity').value?'suggested':'manual'});if(await perform(()=>store.save(entry),`${TYPES[entry.type].name} für ${entry.person} gespeichert · ${money(entry.amountCents)}.`)){pending=null;$('review').hidden=true;$('barcode').value='';}}catch(error){showError(error);}});
+function manualEntry(input){const signature=JSON.stringify(input);if(attemptedManual?.signature===signature)return attemptedManual.entry;const entry=createEntry(input);attemptedManual={signature,entry};return entry;}
+document.querySelectorAll('[data-quick]').forEach(button=>button.addEventListener('click',async()=>{try{const entry=manualEntry({person:name(),type:button.dataset.quick,date:$('manual-date').value});if(await perform(()=>store.save(entry),`${TYPES[entry.type].name} für ${entry.person} erfasst · ${money(entry.amountCents)}.`))attemptedManual=null;}catch(e){showError(e);}}));
+$('custom-form').addEventListener('submit',async event=>{event.preventDefault();try{const entry=manualEntry({person:name(),type:'custom',date:$('manual-date').value,title:$('custom-title').value,amountCents:parseMoney($('custom-value').value)});if(await perform(()=>store.save(entry),'Deine Ersparnis wurde gespeichert.')){attemptedManual=null;$('custom-title').value='';$('custom-value').value='';}}catch(e){showError(e);}});
+$('person-name').value=localStorage.getItem('freebie_person')||'';$('manual-date').value=localDate();
+$('person-name').addEventListener('input',()=>{try{localStorage.setItem('freebie_person',$('person-name').value.trim());}catch{}render();});$('manual-date').addEventListener('change',render);
+for(const id of ['filter','person-filter'])$(id).addEventListener('change',()=>{historyLimit=10;renderHistory();});$('search').addEventListener('input',()=>{historyLimit=10;renderHistory();});$('history-more').addEventListener('click',()=>{historyLimit+=10;renderHistory();});
+$('export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([csv(state.entries)],{type:'text/csv;charset=utf-8'})),link=el('a');link.href=url;link.download='draussen-'+localDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
+$('reset').addEventListener('click',async()=>{try{const selected=store.isGroup()?name():'';if(await confirmAction(store.isGroup()?'Meine Einträge löschen?':'Alle Einträge löschen?',store.isGroup()?`Alle Einträge von ${selected} werden aus eurer gemeinsamen Gruppe gelöscht. Andere Personen bleiben erhalten.`:`Alle ${state.entries.length} Einträge dieses Geräts werden gelöscht. Bitte bei Bedarf vorher als CSV sichern.`)){if(await perform(()=>store.reset(selected),'Einträge gelöscht.')){pending=null;$('review').hidden=true;}}}catch(e){showError(e);}});
+$('connect-form').addEventListener('submit',async e=>{e.preventDefault();await perform(()=>store.connect($('group-url').value,$('group-key').value),'Mit eurer Gruppe verbunden. Vorhandene Einträge wurden geladen.');$('group-key').value='';});
+$('disconnect').addEventListener('click',async()=>{await perform(()=>store.disconnect(),'Zur lokalen Sammlung gewechselt.');});$('reload-group').addEventListener('click',()=>void refresh().catch(showError));
+$('detail-close').addEventListener('click',()=>$('detail-dialog').close());
+setupCamera(reviewCode);
+channel?.addEventListener('message',()=>{if(!busy)void refresh().catch(showError);});window.addEventListener('focus',()=>{if(ready&&!busy)void refresh().catch(showError);});
+setInterval(()=>{if(!scannerOnly&&store.isGroup()&&!busy&&!document.hidden)void refresh().catch(()=>{});},30000);
+function networkStatus(){$('network').textContent=navigator.onLine?'Bereit für deine Auszeit':'Offline · lokal bereit';if(ready)render();}window.addEventListener('online',()=>{networkStatus();if(!busy)void refresh().catch(showError);});window.addEventListener('offline',networkStatus);networkStatus();
+if(scannerOnly){document.body.classList.add('scanner-only');$('scan-title').textContent='Ticket scannen';$('camera-status').textContent='Kamera starten oder den Barcode eingeben. Der gelesene Code wird an eure Gruppen-App zurückgegeben.';}else try{await refresh();}catch(e){$('storage-error').hidden=false;$('storage-error').textContent='Daten konnten nicht geladen werden: '+e.message;showError(e);}
+if('serviceWorker'in navigator&&!globalThis.google?.script?.run){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(async registration=>{void registration.update().catch(()=>{});await navigator.serviceWorker.ready;$('offline-status').textContent='Offline bereit. App und Scanner sind lokal gespeichert. Gemeinsam genutzte Daten benötigen zum Aktualisieren eine Internetverbindung.';}).catch(()=>$('offline-status').textContent='Offline-Speicher nicht verfügbar; bitte online verwenden.');}else $('offline-status').textContent='Die lokale Offline-Installation steht über die GitHub-Pages-Adresse zur Verfügung.';

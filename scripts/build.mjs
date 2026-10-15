@@ -23,3 +23,8 @@ await writeFile('dist/index.html',html);
 const files=await list('dist');const hash=createHash('sha256');for(const f of files)hash.update(await readFile(`dist/${f}`));const version=hash.digest('hex').slice(0,12);
 await writeFile('dist/sw.js',`const CACHE='unterwegs-${version}';const ASSETS=${JSON.stringify(['./',...files.map(assetURL)])};self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('unterwegs-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});self.addEventListener('fetch',event=>{if(event.request.method!=='GET'||new URL(event.request.url).origin!==self.location.origin)return;event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)));});`);
 console.log(`Built dist · ${files.length+1} assets · ${version}`);
+
+// The Apps Script backend shares the validated domain model with the browser.
+const domain=await build({entryPoints:['src/freebies.js'],bundle:true,format:'iife',globalName:'FreebieDomain',target:'es2020',minify:true,write:false});
+const backend=(await readFile('apps-script/Backend.template.gs','utf8')).replace('/* DOMAIN_BUNDLE */',domain.outputFiles[0].text);
+await writeFile('apps-script/Code.gs',backend);

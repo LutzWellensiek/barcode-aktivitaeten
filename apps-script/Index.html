@@ -1,0 +1,12 @@
+<!doctype html><html lang="de"><head><base target="_top"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Draußen</title><style>body{margin:0;background:#f5f4ed;color:#153d37;font-family:system-ui,sans-serif}.boot{max-width:500px;margin:15vh auto;padding:25px}.boot h1{font-family:Georgia,serif;font-weight:400}</style></head><body><div id="draussen-root"><div class="boot"><h1>Draußen.</h1><p>Deine Gruppe wird geladen …</p></div></div><script>
+(async function(){
+ var base='https://lutzwellensiek.github.io/barcode-aktivitaeten/';
+ var response=await fetch(base+'?shell=group-v2',{cache:'no-store'});
+ if(!response.ok)throw new Error('Oberfläche derzeit nicht erreichbar.');
+ var html=await response.text(),doc=new DOMParser().parseFromString(html,'text/html');
+ var root=document.getElementById('draussen-root');root.replaceChildren.apply(root,Array.from(doc.body.children));
+ Array.from(doc.head.querySelectorAll('link[rel="stylesheet"],link[rel="icon"],link[rel="apple-touch-icon"]')).forEach(function(source){var link=source.cloneNode(true);link.href=new URL(source.getAttribute('href'),base).href;document.head.appendChild(link);});
+ var brand=root.querySelector('.brand');if(brand)brand.href='#';
+ var script=document.createElement('script');script.type='module';script.src=new URL(doc.head.querySelector('script[type="module"]').getAttribute('src'),base).href;document.head.appendChild(script);
+})().catch(function(error){var root=document.getElementById('draussen-root');root.replaceChildren();var p=document.createElement('p');p.className='boot';p.textContent='Draußen konnte nicht geladen werden. Bitte erneut laden. '+error.message;root.appendChild(p);});
+</script></body></html>
