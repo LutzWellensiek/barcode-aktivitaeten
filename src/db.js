@@ -11,7 +11,7 @@ export function openDB(){
 async function run(store,mode,action){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(store,mode);let request;try{request=action(tx.objectStore(store));}catch(e){reject(e);return;}tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error||request?.error);tx.onabort=()=>reject(tx.error||request?.error||new Error('Speichern abgebrochen.'));});}
 export const allEntries=()=>run('activities','readonly',s=>s.getAll());
 export const getEntry=barcode=>run('activities','readonly',s=>s.index('barcode').get(barcode));
-export async function addEntry(entry){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction('activities','readwrite'),s=tx.objectStore('activities'),r=s.getAll();let failure;r.onsuccess=()=>{try{checkPrintBudget(r.result,entry);s.add(entry);}catch(e){failure=e;tx.abort();}};tx.oncomplete=()=>resolve();tx.onerror=()=>reject(failure||tx.error);tx.onabort=()=>reject(failure||tx.error||new Error('Speichern abgebrochen.'));});}
+export async function addEntry(entry){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction('activities','readwrite'),s=tx.objectStore('activities'),r=s.getAll();let failure;r.onsuccess=()=>{try{checkPrintBudget(r.result,entry);s.add(entry);}catch(e){failure=e;tx.abort();}};tx.oncomplete=()=>resolve();tx.onerror=event=>{failure=failure||event.target?.error||tx.error;};tx.onabort=()=>reject(failure||tx.error||new Error('Speichern abgebrochen.'));});}
 export const deleteEntry=id=>run('activities','readwrite',s=>s.delete(id));
 export const clearEntries=()=>run('activities','readwrite',s=>s.clear());
 export const metaAll=()=>run('meta','readonly',s=>s.getAll());
