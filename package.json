@@ -1,0 +1,6 @@
+{
+  "name": "barcode-aktivitaeten", "version": "1.0.0", "private": true, "type": "module",
+  "scripts": {"build":"node scripts/build.mjs", "start":"node scripts/serve.mjs", "test":"node --test tests/core.test.mjs", "test:e2e":"playwright test"},
+  "dependencies": {"@zxing/browser":"0.2.1", "@zxing/library":"0.23.0"},
+  "devDependencies": {"@playwright/test":"1.56.1", "esbuild":"0.25.11"}
+}

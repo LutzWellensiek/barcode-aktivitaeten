@@ -1,0 +1,2 @@
+import {defineConfig,devices} from '@playwright/test';
+export default defineConfig({testDir:'./tests/browser',fullyParallel:true,workers:2,timeout:30000,use:{baseURL:process.env.BASE_URL||'http://127.0.0.1:4173',trace:'retain-on-failure'},projects:[{name:'chromium-mobile',use:{...devices['Pixel 7'],browserName:'chromium'}},{name:'webkit-iphone',use:{...devices['iPhone 13'],browserName:'webkit'}}],webServer:process.env.BASE_URL?undefined:{command:'npm run start',url:'http://127.0.0.1:4173',reuseExistingServer:!process.env.CI}});

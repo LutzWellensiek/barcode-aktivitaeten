@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#123f39"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Karren und Stadtbad: Tickets scannen und Aktivitäten lokal festhalten.">
+  <title>Unterwegs · Dein Ticket-Tagebuch</title>
+  <link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./icons/icon-192.png"><link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <header class="masthead"><a class="brand" href="./" aria-label="Unterwegs Startseite"><span class="brand-icon" aria-hidden="true">↟</span> unterwegs<span class="brand-dot">.</span></a><span class="local-badge"><span></span> Nur auf deinem Gerät</span></header>
+  <main>
+    <section class="intro"><p class="eyebrow">DEIN TICKET-TAGEBUCH</p><h1>Kleine Auszeiten.<br><em>Bleiben in Erinnerung.</em></h1><p>Karren gefahren, Bahnen gezogen? Scanne dein Ticket und halte deinen Besuch fest.</p></section>
+    <div id="storage-error" class="notice error" role="alert" hidden></div>
+    <section class="stats" aria-label="Statistik"><div><strong id="stat-total">0</strong><span>Tickets gesamt</span></div><div><strong id="stat-karren">0</strong><span>↟ Karren</span></div><div><strong id="stat-stadtbad">0</strong><span>≈ Stadtbad</span></div><div><strong id="stat-month">0</strong><span>Diesen Monat</span></div></section>
+    <div class="workspace">
+    <section class="capture card" aria-labelledby="scan-title"><div class="section-top"><span class="eyebrow">01 / ERFASSEN</span><span id="network" class="small-label">Bereit für deine Auszeit</span></div><h2 id="scan-title">Ein Ticket. Ein Moment.</h2>
+      <div class="viewfinder" id="viewfinder"><video id="camera" muted playsinline aria-label="Kameravorschau"></video><div class="camera-placeholder" id="camera-placeholder"><div class="barcode-art" aria-hidden="true"></div><p>Dein nächster Besuch<br>beginnt mit einem Scan.</p></div><div class="scan-frame" aria-hidden="true"></div><span class="finder-caption">INTERLEAVED 2 OF 5 · I25</span></div>
+      <button id="start-camera" class="primary full" type="button"><span aria-hidden="true">▣</span> Kamera starten</button><button id="stop-camera" class="secondary full" type="button" hidden>Kamera stoppen</button>
+      <p id="camera-status" class="hint" role="status">Barcode waagerecht und vollständig ins Bild halten.</p>
+      <label class="photo-button" for="photo">Oder Ticketfoto auswählen<input type="file" id="photo" accept="image/*"></label>
+      <div class="divider"><span>ODER MANUELL EINGEBEN</span></div>
+      <form id="barcode-form"><label for="barcode">Barcode-Nummer</label><div class="input-row"><input id="barcode" name="barcode" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Ziffern unter dem Barcode" required aria-describedby="input-help"><button class="icon-button" type="submit" aria-label="Barcode prüfen">→</button></div><p id="input-help" class="hint">Alle Ziffern inklusive führender Nullen eingeben.</p></form>
+      <p id="feedback" class="notice" role="status" hidden></p>
+      <section id="review" class="review" aria-labelledby="review-title" hidden><div class="section-top"><h3 id="review-title">Ticket prüfen</h3><span id="confidence" class="tag"></span></div><p id="review-message" class="hint"></p><code id="review-barcode"></code><form id="save-form"><div class="field-grid"><div><label for="activity">Aktivität</label><select id="activity" required><option value="">Bitte wählen</option><option value="karren">Karren</option><option value="stadtbad">Stadtbad</option><option value="other">Andere Aktivität</option></select></div><div><label for="visit-date">Besuchsdatum</label><input id="visit-date" type="date" required></div></div><details id="decode-details"><summary>Decodierung ansehen</summary><pre id="decode-output"></pre></details><button id="save" type="submit" class="primary full">Besuch speichern</button><button id="cancel-review" type="button" class="text-button full">Verwerfen</button></form></section>
+    </section>
+    <section class="history card" aria-labelledby="history-title"><div class="section-top"><span class="eyebrow">02 / DEINE SAMMLUNG</span><button id="export" type="button" class="text-button" disabled>CSV exportieren ↗</button></div><h2 id="history-title">Deine letzten Auszeiten</h2><div class="filters"><label class="sr-only" for="filter">Aktivität filtern</label><select id="filter"><option value="all">Alle Aktivitäten</option><option value="karren">↟ Karren</option><option value="stadtbad">≈ Stadtbad</option><option value="other">Andere</option></select><label class="sr-only" for="search">Barcode suchen</label><input id="search" type="search" placeholder="Barcode suchen …"></div><p id="history-count" class="hint"></p><div id="entries"></div><div id="empty" class="empty"><div class="landscape" aria-hidden="true">↟ <span>≈</span> ↟</div><h3>Hier ist Platz für Erlebnisse.</h3><p>Dein erstes gescanntes Ticket<br>macht den Anfang.</p></div><div class="history-footer"><span class="hint">Ein Barcode wird genau einmal gezählt.</span><button id="reset" type="button" class="text-button danger" disabled>Alle löschen</button></div></section>
+    </div>
+    <details class="about"><summary>Gut zu wissen · Datenschutz & iPhone</summary><div><p>Alle Einträge bleiben in der Browser-Datenbank dieses Geräts. Es gibt keinen Upload und keine Analyse-Dienste. Browserdaten löschen oder ein Gerätewechsel kann deine Sammlung entfernen. Sichere sie regelmäßig als CSV. Safari und eine installierte App können getrennte Speicher verwenden.</p><p><strong>iPhone:</strong> In Safari öffnen, Kamera erlauben. Über das Teilen-Menü → „Zum Home-Bildschirm“ hinzufügen. Kamera benötigt HTTPS (oder localhost). Nach dem ersten vollständigen Laden funktioniert die App auch offline.</p><p><strong>Erkennung:</strong> Stadtbad = 22 Ziffern + Modulo-10-Prüfziffer, Herkunft nur wahrscheinlich. Karren = experimentelle 80-Bit-Heuristik, bisher anhand September/Oktober 2026 abgeleitet. Das Jahr und die Prüfinformation sind unbekannt. Besuchsdatum immer prüfen. Die Statistik zählt eindeutige Tickets; mehrere verschiedene Tickets am selben Tag zählen einzeln.</p><p id="offline-status">Offline-Speicher wird vorbereitet …</p></div></details>
+  </main><footer class="page-footer"><span>Aus Tickets werden Erinnerungen.</span><span>Karren ↟ Stadtbad ≈</span></footer>
+</div>
+<dialog id="confirm-dialog"><form method="dialog"><p class="eyebrow">DEINE SAMMLUNG</p><h2 id="confirm-title">Eintrag löschen?</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="secondary">Abbrechen</button><button value="confirm" class="primary danger-bg">Endgültig löschen</button></div></form></dialog>
+</body></html>
