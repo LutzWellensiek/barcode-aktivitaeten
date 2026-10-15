@@ -3,7 +3,7 @@ import {allEntries,getEntry,addEntry,deleteEntry,clearEntries} from './db.js';
 import {createReader,cameraMessage} from './scanner.js';
 const $=id=>document.getElementById(id);
 const typeNames={karren:'Karren',stadtbad:'Stadtbad',other:'Andere Aktivität'};
-let entries=[],pending=null,controls=null,reader=null,cameraGeneration=0,cameraStarting=false,storageReady=false;
+let entries=[],pending=null,controls=null,reader=null,cameraGeneration=0,cameraStarting=false,cameraStream=null,storageReady=false;
 const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('barcode-entries'):null;
 const displayDate=value=>new Intl.DateTimeFormat('de-DE').format(new Date(`${value}T12:00:00`));
 function feedback(message,error=false){$('feedback').textContent=message;$('feedback').classList.toggle('error',error);$('feedback').hidden=false;}
@@ -64,19 +64,22 @@ $('reset').addEventListener('click',async()=>{if(await confirmAction('Alle Eintr
 $('export').addEventListener('click',()=>{const blob=new Blob([csv(entries)],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`unterwegs-${localDate()}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
 function stopCamera(){
   cameraGeneration++;cameraStarting=false;controls?.stop();controls=null;
-  const stream=$('camera').srcObject;if(stream)stream.getTracks().forEach(track=>track.stop());$('camera').srcObject=null;
+  for(const stream of new Set([cameraStream,$('camera').srcObject]))stream?.getTracks().forEach(track=>track.stop());cameraStream=null;$('camera').srcObject=null;
   $('start-camera').hidden=false;$('start-camera').disabled=false;$('stop-camera').hidden=true;$('camera-placeholder').hidden=false;
 }
 $('stop-camera').addEventListener('click',()=>{stopCamera();$('camera-status').textContent='Kamera gestoppt. Du kannst sie jederzeit neu starten.';});
-$('start-camera').addEventListener('click',async()=>{
+async function startCamera(){
   if(cameraStarting||controls)return;
   if(!window.isSecureContext){$('camera-status').textContent='Die Kamera benötigt HTTPS. Bitte die veröffentlichte HTTPS-Adresse öffnen. Manuelle Eingabe bleibt verfügbar.';return;}
   if(!navigator.mediaDevices?.getUserMedia){$('camera-status').textContent='Dieser Browser bietet keinen Kamerazugriff. Bitte in Safari öffnen oder Barcode eintippen.';return;}
-  cameraStarting=true;const generation=++cameraGeneration;$('start-camera').disabled=true;$('stop-camera').hidden=false;$('camera-status').textContent='Kamerazugriff wird angefragt …';
+  $('camera-permission-help').hidden=true;cameraStarting=true;const generation=++cameraGeneration;$('start-camera').disabled=true;$('stop-camera').hidden=false;$('camera-status').textContent='Bitte im Browser den Kamerazugriff zulassen. Die Berechtigungsanfrage ist geöffnet oder wird gerade geprüft …';
   let last='',hits=0,lastTime=0;
   try{
-    reader=createReader();
-    const nextControls=await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}},$('camera'),(result,error,scanControls)=>{
+    // Call from the tap handler, before waiting for reader setup or other work.
+    const requestedStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    if(generation!==cameraGeneration){requestedStream.getTracks().forEach(track=>track.stop());return;}
+    cameraStream=requestedStream;reader=createReader();
+    const nextControls=await reader.decodeFromStream(requestedStream,$('camera'),(result,error,scanControls)=>{
       if(generation!==cameraGeneration){scanControls?.stop();return;}
       if(!result)return;const code=result.getText(),now=Date.now();
       hits=code===last&&now-lastTime<2500?hits+1:1;last=code;lastTime=now;
@@ -84,8 +87,10 @@ $('start-camera').addEventListener('click',async()=>{
     });
     if(generation!==cameraGeneration){nextControls.stop();return;}
     controls=nextControls;cameraStarting=false;$('start-camera').hidden=true;$('camera-placeholder').hidden=true;$('camera-status').textContent='Kamera aktiv. Barcode ruhig und waagerecht ins Bild halten. Zwei gleiche Lesungen bestätigen den Scan.';
-  }catch(error){if(generation===cameraGeneration){stopCamera();$('camera-status').textContent=cameraMessage(error);}}
-});
+  }catch(error){if(generation===cameraGeneration){stopCamera();$('camera-status').textContent=cameraMessage(error);$('camera-permission-help').hidden=!['NotAllowedError','PermissionDeniedError','SecurityError'].includes(error?.name);}}
+}
+$('start-camera').addEventListener('click',startCamera);
+$('retry-camera').addEventListener('click',startCamera);
 $('photo').addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file)return;stopCamera();const url=URL.createObjectURL(file);$('camera-status').textContent='Ticketfoto wird auf diesem Gerät gelesen …';
   try{const result=await createReader().decodeFromImageUrl(url);await reviewCode(result.getText());$('camera-status').textContent='Barcode aus Foto gelesen. Bitte Angaben prüfen.';}
@@ -99,4 +104,4 @@ window.addEventListener('focus',()=>{if(storageReady)void refresh().catch(storag
 function networkStatus(){$('network').textContent=navigator.onLine?'Bereit für deine Auszeit':'Offline · lokal bereit';}
 window.addEventListener('online',networkStatus);window.addEventListener('offline',networkStatus);networkStatus();
 try{await refresh();storageReady=true;}catch(e){storageError(e);$('save').disabled=true;}
-if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').then(async()=>{await navigator.serviceWorker.ready;$('offline-status').textContent='Offline bereit. Die App und der Scanner sind lokal gespeichert.';}).catch(()=>{$('offline-status').textContent='Offline-Speicher konnte nicht eingerichtet werden. Online kannst du die App weiterhin verwenden.';});}else{$('offline-status').textContent='Dieser Browser unterstützt die Offline-Installation nicht.';}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(async registration=>{void registration.update().catch(()=>{});await navigator.serviceWorker.ready;$('offline-status').textContent='Offline bereit. Die App und der Scanner sind lokal gespeichert.';}).catch(()=>{$('offline-status').textContent='Offline-Speicher konnte nicht eingerichtet werden. Online kannst du die App weiterhin verwenden.';});}else{$('offline-status').textContent='Dieser Browser unterstützt die Offline-Installation nicht.';}

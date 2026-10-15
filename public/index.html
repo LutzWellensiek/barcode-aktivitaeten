@@ -20,6 +20,14 @@
       <div class="viewfinder" id="viewfinder"><video id="camera" muted playsinline aria-label="Kameravorschau"></video><div class="camera-placeholder" id="camera-placeholder"><div class="barcode-art" aria-hidden="true"></div><p>Dein nächster Besuch<br>beginnt mit einem Scan.</p></div><div class="scan-frame" aria-hidden="true"></div><span class="finder-caption">INTERLEAVED 2 OF 5 · I25</span></div>
       <button id="start-camera" class="primary full" type="button"><span aria-hidden="true">▣</span> Kamera starten</button><button id="stop-camera" class="secondary full" type="button" hidden>Kamera stoppen</button>
       <p id="camera-status" class="hint" role="status">Barcode waagerecht und vollständig ins Bild halten.</p>
+      <section id="camera-permission-help" class="permission-help" aria-labelledby="permission-title" hidden>
+        <h3 id="permission-title">Kamera im Browser erlauben</h3>
+        <p>Beim ersten Versuch fragt dein Browser nach der Kamera. Tippe auf <strong>Zulassen</strong>. Erscheint kein Dialog, ist der Zugriff möglicherweise bereits blockiert.</p>
+        <p><strong>Chrome / Edge:</strong> Links neben der Adresse auf das Regler- oder Schloss-Symbol tippen → Kamera → Zulassen. Falls nötig in den Website-Einstellungen die Kameraberechtigung auf „Fragen“ zurücksetzen.</p>
+        <p><strong>Safari auf dem iPhone:</strong> Seitenmenü neben der Adresse → Website-Einstellungen → Kamera → Fragen oder Erlauben. Danach erneut anfragen.</p>
+        <p>Bleibt die Kamera blockiert, prüfe auch die Kamera-Freigabe für den Browser in den Geräte-Einstellungen. In einer eingebetteten Vorschau die App direkt in Safari oder Chrome öffnen.</p>
+        <button id="retry-camera" type="button" class="secondary full">Kameraberechtigung erneut anfragen</button>
+      </section>
       <label class="photo-button" for="photo">Oder Ticketfoto auswählen<input type="file" id="photo" accept="image/*"></label>
       <div class="divider"><span>ODER MANUELL EINGEBEN</span></div>
       <form id="barcode-form"><label for="barcode">Barcode-Nummer</label><div class="input-row"><input id="barcode" name="barcode" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Ziffern unter dem Barcode" required aria-describedby="input-help"><button class="icon-button" type="submit" aria-label="Barcode prüfen">→</button></div><p id="input-help" class="hint">Alle Ziffern inklusive führender Nullen eingeben.</p></form>

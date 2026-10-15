@@ -11,6 +11,8 @@ Mobile, vollständig statische PWA zum Scannen und lokalen Loggen von Karren- un
 3. Erkennung und Besuchsdatum prüfen, gegebenenfalls Aktivität ändern, anschließend **Besuch speichern**.
 4. Optional Safari → Teilen → **Zum Home-Bildschirm**. Die App ist nach vollständigem Erstladen offline verfügbar. Bei neuen Versionen alle App-Tabs schließen und erneut öffnen.
 
+Beim Antippen von **Kamera starten** fordert die App unmittelbar per `getUserMedia` die Kameraberechtigung an; Audio bleibt ausgeschaltet. Bei Ablehnung erscheint eine Anleitung für Chrome/Edge und Safari sowie **Kameraberechtigung erneut anfragen**. Bereits dauerhaft verweigerte Berechtigungen muss der Benutzer selbst in den Browser-Einstellungen auf Fragen/Zulassen ändern; die App darf diese Sperre nicht umgehen.
+
 Die Kamera benötigt HTTPS; `http://localhost` ist für lokale Entwicklung ebenfalls zulässig. Eine HTTP-LAN-Adresse auf dem iPhone ist kein Ersatz für HTTPS. Die Rückkamera wird bevorzugt, Kamera läuft nur nach bewusstem Start und stoppt beim Verlassen der Seite. Bei verweigerter Berechtigung Safari-Seitenmenü → Website-Einstellungen → Kamera erlauben; die genaue Bezeichnung hängt von der iOS-Version ab.
 
 ## Daten und Zählung

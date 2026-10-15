@@ -7,3 +7,5 @@
 @media(max-width:680px){input,select,.filters input,.filters select,.field-grid select,input[type=date]{font-size:16px}}
 
 .photo-button{position:relative}.photo-button input{left:0;top:0;overflow:hidden;clip-path:inset(50%)}.sr-only{clip-path:inset(50%)}
+
+.permission-help{background:#f1edda;border:1px solid #ddd7ba;border-radius:12px;padding:16px;margin:14px 0}.permission-help h3{font-size:15px}.permission-help p{font-size:12px;line-height:1.6}.permission-help button{margin-top:8px}
