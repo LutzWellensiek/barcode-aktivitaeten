@@ -1,13 +1,13 @@
 # Draußen · Freebie Tracker
 
-Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design, ergänzt um I25-Barcodescanner, Duplikatsperre, lokale PWA und CSV.
+Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design mit vereinfachter Oberfläche, ergänzt um I25-Barcodescanner, Duplikatsperre, lokale PWA und CSV.
 
 ## Enthalten
 
 - Name auf dem Gerät merken; Datum beim Öffnen, Zurückkehren und Tageswechsel auf heute setzen. Bekannte Personen auswählen; Besuchsdatum bei Tickets prüfen.
 - Karren 16,50 €, Stadtbad 9,40 €, Freibier 4,50 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
 - I25 über Kamera, Foto oder Eingabe. Karren experimentell; Stadtbad wahrscheinlich mit Mod10. Barcode stets eindeutig, manuelle Schnellbuchungen separat mehrfach möglich.
-- Gemeinsame und persönliche Ersparnis, sieben Kategorien inklusive alter Archivdaten, Rangliste, Personen-Details, Überholhinweis, 1.000-€-Meilensteine.
+- Persönliche Aktivitätszähler oben, Gruppenzähler am gemeinsamen Sparziel. Gemeinsame und persönliche Ersparnis, sieben Kategorien inklusive alter Archivdaten, Rangliste, Personen-Details, Überholhinweis, 1.000-€-Meilensteine.
 - Zwölf Erfolge inklusive Secret/Legende. Spardorf und Feature-Abstimmungen sind aus der Oberfläche entfernt; frühere Daten bleiben unberührt.
 - Kumulativer Spar-Verlauf pro Person mit ein-/ausblendbaren Linien, zugänglicher Datentabelle und großer Ansicht mit Pinch-Zoom, Mausrad-Zoom und verschiebbarer Grafik.
 - Kompakter einklappbarer Ticketscanner, Rangliste direkt nach der Eingabe. Einklappbarer Verlauf ganz unten mit Such-/Personen-/Typfilter; Historie in Zehnerschritten, CSV aller Einträge, Einzel-Löschen und bestätigter Reset.
@@ -31,7 +31,7 @@ Für Google-Datenzugriff sind nur die bereits genutzten Tabellenrechte erforderl
 
 Außerhalb der Google-App arbeitet die PWA standardmäßig lokal. IndexedDB-Version 2 übernimmt vorhandene Barcode-Einträge verlustfrei. Bislang namenlose Einträge bleiben ausdrücklich unzugeordnet und können einer Person zugeordnet werden. Die Standardwerte für Karren/Stadtbad werden ergänzt. Daten eines Geräts werden nicht automatisch in die gemeinsame Gruppe hochgeladen.
 
-Optional kann eine externe Gruppenverbindung eingerichtet werden. Diese ist im Backend standardmäßig deaktiviert. Dazu muss der Betreiber in den Skripteigenschaften GROUP_ACCESS_KEY (mindestens 16 zufällige Zeichen) und gegebenenfalls ALLOWED_ORIGINS konfigurieren. Der Benutzer trägt Web-App-Adresse und Schlüssel in der PWA unter „Gemeinsame Gruppe & Verbindung“ ein. Der Schlüssel wird lokal auf dem Gerät gespeichert und nur im POST-Body an das gewählte Google-Endpoint gesendet; keine Zugangsdaten im Repository oder URL. Ohne Antwort wird ein Fehler angezeigt. Ein zuletzt geladener Gruppenstand ist lokal zwischengespeichert; Änderungen an der Gruppe benötigen Internet. Die bestehende Google-App benötigt diesen zusätzlichen Schlüssel nicht.
+Optional kann eine externe Gruppenverbindung eingerichtet werden. Diese ist im Backend standardmäßig deaktiviert. Dazu muss der Betreiber in den Skripteigenschaften GROUP_ACCESS_KEY (mindestens 16 zufällige Zeichen) und gegebenenfalls ALLOWED_ORIGINS konfigurieren. Die Verbindungsoberfläche wurde auf Wunsch entfernt; die bestehende Google-App verbindet sich weiterhin automatisch. Bereits gespeicherte externe Konfigurationen bleiben nutzbar. Der Schlüssel wird lokal auf dem Gerät gespeichert und nur im POST-Body an das gewählte Google-Endpoint gesendet; keine Zugangsdaten im Repository oder URL. Ohne Antwort wird ein Fehler angezeigt. Ein zuletzt geladener Gruppenstand ist lokal zwischengespeichert; Änderungen an der Gruppe benötigen Internet. Die bestehende Google-App benötigt diesen zusätzlichen Schlüssel nicht.
 
 Namen sind Zuordnungen innerhalb einer vertrauensvollen Gruppe, keine persönlichen Benutzerkonten. Wie bisher kann jemand einen anderen Namen eingeben. Im Gruppenmodus werden in der Oberfläche nur Einträge des ausgewählten Namens gelöscht und ein Reset betrifft nur diesen Namen. Lokaler Reset leert die lokale Sammlung.
 

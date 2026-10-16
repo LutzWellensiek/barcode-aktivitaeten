@@ -87,3 +87,12 @@ Abschlussstand 78e215d: Linux-CI erfolgreich mit 18 Logik-/Backendprüfungen und
 In der echten Google-App unter unverändertem Link geprüft: Name nach Neuladen erhalten, heutiges Datum, Kopfzeile ohne Verbindungsanzeige, beide Bereiche zunächst geschlossen, automatisches Zuklappen beim Wechsel zur Eingabe, entfernte Dorf-/Abstimmungsbereiche und große Diagrammansicht samt Vergrößern/Schließen/erneutem Antippen. Keine Testbuchungen oder Löschungen in der Gruppentabelle. Zusätzlicher Chromium-Touchtest mit zwei tatsächlichen Browser-Touchpunkten: 300-%-Zoom, keine JavaScript-Fehler. Darstellung auch bei 320×568, 844×390 und 1280×390 ohne Überlauf oder abgeschnittene Bedienelemente geprüft. Ein physischer iPhone-Test bleibt weiterhin offen.
 
 [Erfolgreiche endgültige Veröffentlichung](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38731849406)
+
+## Persönliche Zähler und vereinfachte Navigation, 16.10.2026
+
+- Obere vier Zähler zeigen ausschließlich die gewählte Person; leerer oder unbekannter Name ergibt null. Zuordnung ignoriert Groß-/Kleinschreibung und äußere Leerzeichen. Unter dem gemeinsamen Sparziel stehen die vier Gruppenzähler einschließlich aktuellem Monat.
+- Logo ist eine Schaltfläche zum Scrollen an den Anfang. Dadurch kann Googles base target=_top keine interne Rahmenadresse mehr als ganze Seite öffnen. Die drei Sprunglinks sind entfernt.
+- Personen-Kurztext neben dem gemeinsamen Betrag sowie Verbindungs- und Info-Aufklappbereiche entfernt. Native Google-Verbindung bleibt automatisch; bereits eingerichtete externe Verbindungen bleiben intern nutzbar.
+- Datum und Namensfeld haben gleiche Höhe und begrenzte Breite. Bis 400 px stehen beide untereinander; WebKit-Datumsunterelemente sind links ausgerichtet.
+- Lokal: 18 Logik-/Backendprüfungen und 49 Browserprüfungen bestanden, 3 bekannte Windows-WebKit-Einschränkungen übersprungen. Neue Fälle: persönliche und gemeinsame Zähler bei Personen-/Monatswechsel, leere Namen, Logo im simulierten Google-Basiskontext sowie Datumsbreiten bei 320/375/390/430/768 px.
+- Visuelle Prüfung in Chromium und WebKit bei 320/375/390/430/768/1280 px: kein seitliches Überlaufen und keine JavaScript-Fehler, persönliche und gemeinsame Beispielzähler korrekt getrennt. Ein physisches iPhone wurde nicht verwendet.

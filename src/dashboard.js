@@ -5,7 +5,7 @@ export function el(tag,text,cls){const node=document.createElement(tag);if(text!
 export function details(title,content){$('detail-title').textContent=title;$('detail-content').replaceChildren(...content);$('detail-dialog').showModal();}
 export function renderDashboard(state,name,callbacks){
  const stats=groupStats(state.entries),key=personKey(name),me=stats.persons.get(key);
- $('total-saved').textContent=money(stats.totalCents);$('my-saved').textContent=money(me?.totalCents||0);$('person-count').textContent=stats.leaderboard.length;
+ $('total-saved').textContent=money(stats.totalCents);$('my-saved').textContent=money(me?.totalCents||0);
  $('group-scope').textContent=callbacks.group?'Gemeinsame Google-Sheets-Gruppe':'Personen auf diesem Gerät';
  $('group-counts').replaceChildren(...Object.entries(TYPES).filter(([type])=>type!=='print').map(([type,config])=>{const row=el('div',undefined,'stat-row');row.append(el('span',config.icon+' '+config.name),el('strong',String(stats.counts[type]||0)));return row;}));
  const goal=milestone(stats.totalCents);$('goal-current').textContent=money(stats.totalCents);$('goal-target').textContent=money(goal.target);$('goal-progress').value=goal.percent;$('goal-caption').textContent=`Noch ${money(goal.remaining)} bis zum nächsten gemeinsamen Meilenstein.`;
