@@ -37,3 +37,5 @@ body.scanner-only .intro,body.scanner-only .identity,body.scanner-only .stats,bo
 .scanner-only #open-settings,.scanner-only .brand-caption{display:none!important}
 
 .brand-icon{background:var(--ink);color:var(--on-primary)}.app-toast{color:var(--on-primary)}
+
+.sound-settings{border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 20px;background:var(--soft)}.sound-heading,.sound-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}.sound-heading h3{font-size:15px;margin:0 0 4px}.sound-heading p{margin:0}.sound-actions{margin-top:12px}.sound-actions p{margin:0;min-width:0;flex:1}.sound-actions button{flex:0 0 auto;font-size:12px;padding:10px 12px;min-height:44px}#sound-toggle{min-width:64px;min-height:44px;border-radius:24px;background:var(--ink);color:var(--on-primary);border:2px solid var(--ink);padding:8px 14px}#sound-toggle[aria-checked=false]{background:var(--card);color:var(--ink);border-color:var(--line)}#sound-status{margin:8px 0 0;min-height:1.4em}

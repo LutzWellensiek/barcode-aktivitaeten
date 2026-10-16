@@ -120,3 +120,10 @@ Veröffentlichung de569e6 erfolgreich. Die bestehende Google-Bereitstellung wurd
 Nach Veröffentlichung sind alle acht neuen Farbstil-Prüfungen in mobilem Chromium und iPhone-WebKit bestanden. Mobile Vorschau mit isolierten Beispieldaten erneut aufgenommen. Ein physisches iPhone wurde nicht verwendet; die Geräteprüfung bleibt ein manueller Test.
 
 [Erfolgreicher Test- und Veröffentlichungsablauf](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38881606981)
+
+
+## Soundeffekte, 16.10.2026
+
+Eigene, kurze Web-Audio-Klänge für die vier Schnellbuchungen, erfolgreiche Speicherung, Scan, Duplikate, Fehler, Öffnen/Schließen und weitere Buttons. Buchungstöne werden erst nach erfolgreicher Speicherung abgespielt. Audio wird im direkten Benutzerklick freigeschaltet und beim Verlassen/Verbergen pausiert; keine automatische Wiedergabe beim Laden. Stummschaltung stoppt laufende und geplante Töne. Fehlende oder blockierte Audioausgabe beeinträchtigt Buchungen nicht. An/Aus wird pro normalisiertem Namen lokal gespeichert bzw. in der Google-App über APP_SOUNDS gemeinsam gespeichert; Farbstile und Aktivitätsdaten bleiben getrennt.
+
+21 Logik-/Backendprüfungen und lokal 68 Browserprüfungen bestanden. Vier Windows-WebKit-Einschränkungen übersprungen: drei bereits bekannte Kamera-/Offline-Fälle und die dort vollständig fehlende Web-Audio-API. Die Ton-Auswahl, Namenswechsel, Neuladen, zweite unabhängige Browser-Sitzung, fehlgeschlagene Speicherung und fehlende Audioausgabe werden in beiden Browsern geprüft. Chromium prüft tatsächlich gestartete Web-Audio-Oszillatoren, unterschiedliche Aktivitätsklänge, keine Audioinitialisierung ohne Berührung, stumme Buchungen und Fehlerklang statt falschem Buchungserfolg. Mobile Darstellung bei 320×568, 390×844 und 1280×844 in Chromium und WebKit ohne Überlauf oder JavaScript-Fehler geprüft; Toneinstellungen und alle Paletten bleiben erreichbar. Ein physisches iPhone wurde nicht verwendet.

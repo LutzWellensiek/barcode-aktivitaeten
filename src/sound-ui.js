@@ -1,0 +1,15 @@
+import {createSoundPlayer} from './sounds.js';
+import {personKey,cleanName} from './freebies.js';
+export function setupSounds({onToggle,isGroup}){
+ const $=id=>document.getElementById(id),player=createSoundPlayer();
+ let state={},selectedName='',blocked=false,saving=false,status='';
+ function name(){try{return cleanName(selectedName);}catch{return '';}}
+ function enabled(){const key=personKey(name());if(typeof state.sounds?.[key]==='boolean'){try{localStorage.setItem('draussen-sound:'+encodeURIComponent(key),String(state.sounds[key]));}catch{}return state.sounds[key];}try{return localStorage.getItem('draussen-sound:'+encodeURIComponent(key))!=='false';}catch{return true;}}
+ function render(){const on=enabled(),n=name();player.setEnabled(on);$('sound-toggle').setAttribute('aria-checked',String(on));$('sound-toggle').textContent=on?'An':'Aus';$('sound-toggle').disabled=!n||blocked||saving;$('sound-preview').disabled=!on;$('sound-person').textContent=n?(isGroup()?'Für deinen Namen in eurer Gruppe gespeichert.':'Für deinen Namen auf diesem Gerät gespeichert.'):'Trage zuerst deinen Namen ein, um die Einstellung zu speichern.';$('sound-status').textContent=saving?'Ton-Einstellung wird gespeichert …':blocked&&n?'Zum Speichern bitte wieder verbinden.':status;}
+ $('sound-toggle').addEventListener('click',async()=>{if(saving||blocked||!name())return;const next=!enabled();saving=true;status='';render();if(next){player.setEnabled(true);player.unlock();}else player.stop();let ok=false;try{ok=await onToggle(next);}catch{}finally{saving=false;status=ok?'Gespeichert.':'Nicht gespeichert. Bitte erneut versuchen.';render();if(ok&&next)player.play('success');}});
+ const previews=[['karren','↟ Karren'],['stadtbad','≈ Stadtbad'],['freibier','🍺 Freibier'],['apfel','🍎 Apfel']];let preview=0;
+ $('sound-preview').addEventListener('click',()=>{const [id,label]=previews[preview++%previews.length];player.play(id);$('sound-status').textContent='Hörprobe: '+label;});
+ document.addEventListener('click',event=>{if(event.isTrusted)player.unlock();},true);
+ document.addEventListener('click',event=>{const target=event.target.closest('button,summary,[role=button]');if(!target||target.disabled||target.getAttribute('aria-disabled')==='true'||target.matches('[data-quick],#save,#sound-toggle,#sound-preview,#custom-form button[type=submit],#barcode-form button[type=submit]'))return;const closing=target.matches('#settings-close,#detail-close,#chart-close,#cancel-review,button[value=cancel]')||(target.matches('summary')&&target.parentElement.open);const opening=target.matches('#open-settings,#savings-chart,summary,.leader-row,.achievement');player.play(closing?'close':opening?'open':'tap');});
+ return {play:player.play,update(next,n,options){if(personKey(n)!==personKey(selectedName))status='';state=next;selectedName=n;blocked=options.blocked;render();}};
+}
