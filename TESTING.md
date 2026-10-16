@@ -102,3 +102,7 @@ Nach der Live-Prüfung: Gleichbleibende Daten führen beim Fensterfokus nicht me
 Endstand fe1c022: Veröffentlichung erfolgreich, 18 Logik-/Backendprüfungen und 53 Browserprüfungen bestanden, 1 bekannter WebKit-Offline-Test übersprungen. Nach Veröffentlichung sind 6 gezielte Zähler-/Logo-/Datumsprüfungen und 2 Prüfungen der stabilen Rückkehr bestanden. In der echten Google-App: Logo-Klick bleibt unter derselben URL, der erste Klick auf Personen-Details funktioniert, obere Zahlen entsprechen den Details der ausgewählten Person, die Gruppenzähler bleiben separat korrekt. Beide Eingabefelder messen 48 px Höhe; entfernte Bereiche sind nicht mehr im Dokument vorhanden. Keine Testbuchungen oder Löschungen in der Gruppentabelle vorgenommen.
 
 [Erfolgreiche Veröffentlichung der persönlichen Zähler und vereinfachten Oberfläche](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38860215930)
+
+## Kompakter Einstieg, 16.10.2026
+
+Dein Freebie Tracker steht klein rechts neben dem Logo. Großer Einleitungstext, die beiden Überschriften vor den Schnellbuchungen und der Google-Sheets-Hinweis in der Rangliste sind entfernt. Die Eingabe beginnt in den geprüften Handybreiten bereits 91 px unter dem oberen Seitenrand. Sechs bestehende Bedien-/Datums-/Zählerprüfungen bestanden. Darstellung bei 320/390/430/1280 px in Chromium und WebKit geprüft: kein Überlaufen, keine JavaScript-Fehler. Keine Änderungen an Gruppendaten oder bestehender Bereitstellungsadresse.
