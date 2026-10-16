@@ -106,3 +106,5 @@ Endstand fe1c022: Veröffentlichung erfolgreich, 18 Logik-/Backendprüfungen und
 ## Kompakter Einstieg, 16.10.2026
 
 Dein Freebie Tracker steht klein rechts neben dem Logo. Großer Einleitungstext, die beiden Überschriften vor den Schnellbuchungen und der Google-Sheets-Hinweis in der Rangliste sind entfernt. Die Eingabe beginnt in den geprüften Handybreiten bereits 91 px unter dem oberen Seitenrand. Sechs bestehende Bedien-/Datums-/Zählerprüfungen bestanden. Darstellung bei 320/390/430/1280 px in Chromium und WebKit geprüft: kein Überlaufen, keine JavaScript-Fehler. Keine Änderungen an Gruppendaten oder bestehender Bereitstellungsadresse.
+
+Veröffentlichung 2ff3614 erfolgreich. Nach Veröffentlichung in der echten Google-App geprüft: Tracker-Beschriftung in der Kopfzeile, alle genannten Textbereiche entfernt, Eingabe direkt unter dem Kopfbereich, gespeicherter Name und vorhandene Gruppendaten geladen. [Erfolgreicher Test- und Deployment-Lauf](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38861093497).
