@@ -9,7 +9,7 @@ export function setupIdentity({render,scannerOnly}){
  function persist(){const value=input.value.trim();try{localStorage.setItem('freebie_person',value);}catch{}void metaPut('person-name',value).catch(()=>{});}
  input.addEventListener('input',()=>{changed=true;persist();render();});
  for(const event of ['change','blur'])input.addEventListener(event,persist);
- function today(force=false){const current=localDate();if(force||lastDay!==current){date.value=current;lastDay=current;render();}}
+ function today(force=false){const current=localDate();if(lastDay!==current||(force&&date.value!==current)){date.value=current;lastDay=current;render();}}
  date.value=lastDay;date.addEventListener('change',render);
  window.addEventListener('pageshow',()=>today(true));window.addEventListener('focus',()=>today(true));
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)today(true);});
