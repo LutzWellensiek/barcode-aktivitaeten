@@ -1,3 +1,4 @@
+import {setupRefresh,setupLogoMotion} from './refresh-ui.js';
 import {setupPhotos} from './photo-ui.js';
 import {setupSounds} from './sound-ui.js';
 import {setupThemes} from './theme-ui.js';
@@ -56,7 +57,7 @@ for(const id of ['filter','person-filter'])$(id).addEventListener('change',()=>{
 $('export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([csv(state.entries)],{type:'text/csv;charset=utf-8'})),link=el('a');link.href=url;link.download='draussen-'+localDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
 $('reset').addEventListener('click',async()=>{try{const selected=store.isGroup()?name():'';if(await confirmAction(store.isGroup()?'Meine Einträge löschen?':'Alle Einträge löschen?',store.isGroup()?`Alle Einträge von ${selected} werden aus eurer gemeinsamen Gruppe gelöscht. Andere Personen bleiben erhalten.`:`Alle ${state.entries.length} Einträge dieses Geräts werden gelöscht. Bitte bei Bedarf vorher als CSV sichern.`)){if(await perform(()=>store.reset(selected),'Einträge gelöscht.')){pending=null;$('review').hidden=true;}}}catch(e){showError(e);}});
 $('detail-close').addEventListener('click',()=>$('detail-dialog').close());
-setupCamera(reviewCode);setupChartViewer();
+setupCamera(reviewCode);setupChartViewer();setupLogoMotion();setupRefresh({scannerOnly,blocked:()=>busy,refresh:async()=>{await refresh();if(store.isCached())throw new Error('Offline: Der letzte gespeicherte Stand wird angezeigt.');await photoUI.refresh();}});
 document.addEventListener('pointerdown',event=>{if(document.querySelector('dialog[open]'))return;for(const id of ['history-panel','ticket-panel']){const panel=$(id);if(panel.open&&!panel.contains(event.target)&&!(id==='ticket-panel'&&(pending||scannerOnly)))panel.open=false;}});
 channel?.addEventListener('message',()=>{if(!busy)void refresh().catch(showError);});window.addEventListener('focus',()=>{if(ready&&!busy)void refresh().catch(showError);});
 setInterval(()=>{if(!scannerOnly&&store.isGroup()&&!busy&&!document.hidden)void refresh().catch(()=>{});},30000);
