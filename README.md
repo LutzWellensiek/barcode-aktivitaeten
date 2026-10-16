@@ -29,7 +29,7 @@ Wichtig beim Aktualisieren: Bereitstellen → Bereitstellungen verwalten → vor
 
 Google sperrt Kamera im äußeren Apps-Script-Rahmen. Der Kameraknopf öffnet daher ein separates Scannerfenster auf GitHub Pages. Dieses gibt ausschließlich den Barcode mit einer einmaligen Sitzungskennung per postMessage an die ursprüngliche App zurück. Herkunft und Kennung werden geprüft. Erst dort werden Person, Datum und Betrag bestätigt und in Sheets gespeichert. Die Google-App-Adresse bleibt bestehen. Bei Popup-Sperre gibt es einen sichtbaren Scanner-Link; Foto und manuelle Eingabe bleiben direkt nutzbar.
 
-Für Google-Datenzugriff sind nur die bereits genutzten Tabellenrechte erforderlich; die statischen Dateien werden vom Browser geladen, nicht über zusätzliche UrlFetch-Berechtigungen.
+Die Oberfläche wird vom Browser geladen. Die Fotoerweiterung benötigt zusätzlich zu den Tabellenrechten Zugriff auf von der App angelegte Drive-Dateien und Serververbindungen zum Abrufen dieser Bilder; siehe Foto-Speicher und Freigabe.
 
 ## GitHub Pages und lokaler Modus
 
@@ -49,7 +49,7 @@ Auf ausdrücklichen Wunsch sind Fotos für **jeden mit dem App-Link** sichtbar u
 
 Einrichtung: Code.gs und appsscript.json in derselben bestehenden Bereitstellung aktualisieren. Das Manifest bewahrt Europe/Vienna und die bisherige Zugriffsart und ergänzt den erweiterten Drive-v3-Dienst sowie die Scopes drive.file und script.external_request. Bestehende Tabellenrechte bleiben erforderlich. Die zusätzliche Google-Freigabe muss der Kontoinhaber prüfen und bestätigen. Der Scope drive.file ist auf mit dieser App angelegte/geöffnete Dateien begrenzt; der OAuth-Token bleibt ausschließlich auf dem Server.
 
-Im Editor **initializePhotoStorage_** einmal ausführen: erzeugt den privaten App-Ordner und den Foto-Index und setzt PHOTO_FOLDER_ID sowie PHOTO_ACCESS_MODE=link. Die Funktion ist durch ihren Unterstrich nicht über google.script.run aufrufbar. **verifyPhotoStorage_** prüft Schreiben/Lesen mit einer privaten temporären Binärdatei und verschiebt sie anschließend in den Papierkorb; dabei entstehen keine Feed-Bilder oder Aktivitätsbuchungen. Erst danach die bestehende Bereitstellung aktualisieren.
+Für die einmalige Einrichtung im Editor vorübergehend `function SetupFotos(){return initializePhotoStorage_();}` ergänzen, speichern und **SetupFotos** ausführen: erzeugt den privaten App-Ordner und den Foto-Index und setzt PHOTO_FOLDER_ID sowie PHOTO_ACCESS_MODE=link. Die Funktion ist durch ihren Unterstrich nicht über google.script.run aufrufbar. Analog führt ein vorübergehender Editor-Wrapper `function TestFotos(){return verifyPhotoStorage_();}` den Speichertest aus. **verifyPhotoStorage_** prüft Schreiben/Lesen mit einer privaten temporären Binärdatei und verschiebt sie anschließend in den Papierkorb; dabei entstehen keine Feed-Bilder oder Aktivitätsbuchungen. Beide öffentlichen Editor-Wrapper anschließend wieder entfernen, speichern und erst danach die bestehende Bereitstellung aktualisieren. Sie dürfen nicht in der veröffentlichten Web-App verbleiben.
 
 Fotos werden auf dem Gerät durch Canvas neu als JPG codiert (maximal 1600 px längste Seite, Vorschau 480 px, begrenzte Uploadgröße); ursprüngliche EXIF-Metadaten werden nicht übernommen. Native Datei-Kamera und tatsächlicher iPhone/Home-Bildschirm-Dialog müssen am Gerät geprüft werden. Falls die Kameraauswahl nicht öffnet, bleibt die Bildauswahl verfügbar; eine externe Foto-Kamera wurde in diesem ersten Versuch bewusst noch nicht ergänzt. Der Barcode-Scanner nutzt weiterhin sein separates Fenster.
 
@@ -61,13 +61,13 @@ Die lokale Namensspeicherung verwendet weiterhin localStorage und IndexedDB. Fal
 
 Einmal oben den Namen eingeben, dann im Einstellungsrad bei **Name auf diesem Gerät** den **Startlink öffnen**. In Safari über **Teilen → Zum Home-Bildschirm** ein neues Symbol anlegen und das alte ersetzen. Der persönliche Link enthält den gewählten Namen; beim Öffnen wird er auch mit gesperrtem Browserspeicher ausgefüllt. Ein altes Symbol mit der namenlosen Startadresse kann die App nicht automatisch umschreiben. Das Öffnen des allgemeinen Links auf einem Gerät ohne verfügbaren Speicher erfordert weiterhin eine Auswahl. Kein Fingerprinting, keine Sensor- oder neuen Kontoberechtigungen.
 
-[Google: Browserhistorie in HTML-Web-Apps](https://developers.google.com/apps-script/guides/html/reference/history) und [URL-Fragment auslesen](https://developers.google.com/apps-script/guides/html/reference/url). Für diese Änderung reicht die Veröffentlichung der statischen Oberfläche; die bestehende Google-Bereitstellung bleibt auf Version 31.
+[Google: Browserhistorie in HTML-Web-Apps](https://developers.google.com/apps-script/guides/html/reference/history) und [URL-Fragment auslesen](https://developers.google.com/apps-script/guides/html/reference/url). Die Namenskorrektur allein benötigt nur eine neue statische Oberfläche. Die spätere Fotoerweiterung aktualisiert zusätzlich dieselbe Google-Bereitstellung.
 
 ## Kamera, Datenschutz und Export
 
 Beim Antippen wird die Kamera direkt per getUserMedia angefragt, ohne Audio. Eine dauerhaft gespeicherte Sperre muss im Browser auf Fragen/Zulassen geändert werden; die App kann sie nicht umgehen. HTTPS ist erforderlich, localhost ist zum Entwickeln zulässig. Kamera stoppt nach erfolgreichem Scan sowie beim Verlassen der Seite; zwei gleiche Lesungen bestätigen einen Kamerascan.
 
-Fotos und Kamerabilder werden auf dem Gerät verarbeitet. Gespeichert werden Aktivitäten, Werte, Namen und gegebenenfalls der Barcode; keine Bilder. Keine Telemetrie oder externen Fonts. CSV ist UTF-8 mit BOM und Semikolon. Die Barcode-Spalte beim Excel-Import als Text behandeln, damit lange Zahlen und führende Nullen unverändert bleiben. Namen/Beschreibungen werden vor Tabellen-/CSV-Formelinjektion geschützt.
+Barcode-Kamerabilder werden nur auf dem Gerät verarbeitet und nicht gespeichert. Freiwillig bestätigte Aktivitätsfotos werden verkleinert und anschließend im gemeinsamen Drive-Speicher beziehungsweise im lokalen PWA-Modus auf diesem Gerät gespeichert. Dazu kommen Aktivitäten, Werte, Namen und gegebenenfalls der Barcode. Keine Telemetrie oder externen Fonts. CSV ist UTF-8 mit BOM und Semikolon. Die Barcode-Spalte beim Excel-Import als Text behandeln, damit lange Zahlen und führende Nullen unverändert bleiben. Namen/Beschreibungen werden vor Tabellen-/CSV-Formelinjektion geschützt.
 
 Die Barcode-Erkennung ist keine offizielle Spezifikation oder Gültigkeitsprüfung: Stadtbad = 22 Ziffern mit Mod10; Karren = experimentelle 80-Bit-Aufteilung 9/7/40/14/10. Tag = oberste 9 Bit minus 210; Monat = (nächste 7 Bit + 9)/8. Bekannte Produkte 292A8BA1F7 und 1FAAABA1F7. Jahr und letzte zehn Bit unbekannt. Datum stets prüfen.
 
