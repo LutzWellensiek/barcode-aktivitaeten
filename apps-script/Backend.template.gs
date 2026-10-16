@@ -24,6 +24,7 @@ function sheet_(name,headers){const ss=book_();let s=ss.getSheetByName(name);if(
 function safeCell_(value){const text=String(value||'');return /^[=+@\-]/.test(text)?"'"+text:text;}
 function text_(value){return String(value||'').replace(/^'(?=[=+@\-])/,'');}
 function action_(entry){const name={karren:'Karren',stadtbad:'Stadtbad',freibier:'Freibier',apfel:'Apfel',print:'Drucken',other:'Andere Aktivität'}[entry.type];return entry.type==='custom'?'Individuell: '+entry.title:name+(entry.title?': '+entry.title:'');}
+function themes_(){const themes=Object.create(null);let saved={};try{saved=JSON.parse(PropertiesService.getScriptProperties().getProperty('APP_THEMES')||'{}');}catch(error){}if(saved&&typeof saved==='object'&&!Array.isArray(saved))Object.keys(saved).forEach(function(key){if(FreebieDomain.validTheme(saved[key]))themes[key]=saved[key];});return themes;}
 function read_(){
  const s=sheet_('Fahrten',['Zeitstempel','Name','Aktion','Wert','ID','Barcode','Besuchsdatum','Decodierung']);
  if(s.getMaxColumns()<8)s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());
@@ -42,7 +43,7 @@ function read_(){
  }
  const votes={},villages={};const vs=book_().getSheetByName('Votes');if(vs){const rows=vs.getDataRange().getValues();for(let i=1;i<rows.length;i++){const key=FreebieDomain.personKey(text_(rows[i][1])),feature=String(rows[i][2]);if(key&&FreebieDomain.FEATURES.some(f=>f.id===feature))votes[key]=feature;}}
  const village=book_().getSheetByName('Village');if(village){const rows=village.getDataRange().getValues();for(let i=1;i<rows.length;i++){const key=FreebieDomain.personKey(text_(rows[i][1])),id=Number(rows[i][2]);if(key&&FreebieDomain.VILLAGE.some(v=>v.id===id)){villages[key]=villages[key]||[1];if(villages[key].indexOf(id)<0)villages[key].push(id);}}}
- return {entries,votes,villages,revision:Number(PropertiesService.getScriptProperties().getProperty('APP_REVISION')||0)};
+ return {entries,votes,villages,themes:themes_(),revision:Number(PropertiesService.getScriptProperties().getProperty('APP_REVISION')||0)};
 }
 function dispatch_(request){
  const action=request.action||'read',data=request.data||{},state=read_(),s=book_().getSheetByName('Fahrten');
@@ -62,6 +63,8 @@ function dispatch_(request){
   else{if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
  }else if(action==='reset'){
   const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
+ }else if(action==='theme'){
+  const name=FreebieDomain.cleanName(data.name),key=FreebieDomain.personKey(name);if(!FreebieDomain.validTheme(data.theme))throw new Error('Unbekannter Farbstil.');state.themes[key]=data.theme;PropertiesService.getScriptProperties().setProperty('APP_THEMES',JSON.stringify(state.themes));
  }else if(action==='vote'){
   const name=FreebieDomain.cleanName(data.name);if(!FreebieDomain.FEATURES.some(f=>f.id===data.feature))throw new Error('Unbekannte Abstimmung.');const v=sheet_('Votes',['Timestamp','Name','FeatureId']),rows=v.getDataRange().getValues();let index=-1;for(let i=1;i<rows.length;i++)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name)){if(index<0)index=i+1;}
   const values=[new Date(),safeCell_(name),data.feature];if(index>0){v.getRange(index,1,1,3).setValues([values]);for(let i=rows.length-1;i>=1;i--)if(i+1!==index&&FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))v.deleteRow(i+1);}else v.appendRow(values);

@@ -1,3 +1,4 @@
+export {THEMES,validTheme} from './theme-data.js';
 import {localDate,validDate,normalizeBarcode} from './core.js';
 export const TYPES={karren:{name:'Karren',icon:'↟',cents:1650},stadtbad:{name:'Stadtbad',icon:'≈',cents:940},freibier:{name:'Freibier',icon:'🍺',cents:450},apfel:{name:'Apfel',icon:'🍎',cents:45},custom:{name:'Individuell',icon:'✨'},print:{name:'Drucken',icon:'🖨️'},other:{name:'Andere Aktivität',icon:'•'}};
 export const FEATURES=[{id:'darkmode',title:'🌙 Dark Mode Design'},{id:'push',title:'🔔 Push-Alarm aufs Handy'},{id:'stats',title:'📊 Erweiterte Statistiken'},{id:'minigame',title:'🎲 Mini-Spiel Erweiterung'}];

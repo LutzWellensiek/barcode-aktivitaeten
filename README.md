@@ -4,6 +4,7 @@ Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design mit ver
 
 ## Enthalten
 
+- Sechs Farbstile über das Einstellungsrad: Wald & Salbei, Lavendel, Ozean, Abendrot, Rosenquarz und Mitternacht. Pro normalisiertem Namen gespeichert; in der Google-App geräteübergreifend über die bestehende Gruppenanbindung, im lokalen Modus in diesem Browser. Gemeinsam gespart steht direkt unter der Kopfzeile.
 - Name auf dem Gerät merken; Datum beim Öffnen, Zurückkehren und Tageswechsel auf heute setzen. Bekannte Personen auswählen; Besuchsdatum bei Tickets prüfen.
 - Karren 16,50 €, Stadtbad 9,40 €, Freibier 4,50 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
 - I25 über Kamera, Foto oder Eingabe. Karren experimentell; Stadtbad wahrscheinlich mit Mod10. Barcode stets eindeutig, manuelle Schnellbuchungen separat mehrfach möglich.
@@ -17,7 +18,7 @@ Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design mit ver
 
 Die vorhandene Apps-Script-Bereitstellung wird aktualisiert, keine neue Bereitstellung mit neuer URL angelegt. Das bestehende Blatt **Fahrten** und seine ersten vier Spalten bleiben erhalten, einschließlich deutscher Überschriften. Spalten E:H ergänzen stabile IDs, Barcode als Text, Aktivitätsdatum und Decodierung. Belegte fremde Zusatzspalten werden nicht überschrieben. Vorhandene Abstimmungs- und Dorf-Daten bleiben gespeichert, werden in der Oberfläche jedoch nicht mehr angeboten.
 
-**apps-script/Code.gs** ist der fertige Backendcode, generiert aus dem gemeinsamen geprüften Datenmodell. **apps-script/Index.html** ist die kleine Oberfläche der bestehenden Google-App: Sie lädt HTML/CSS/JavaScript aus derselben GitHub-Pages-App und verwendet in Google automatisch google.script.run. Konten und Zugriffseinstellungen der vorhandenen Bereitstellung bleiben erhalten.
+**apps-script/Code.gs** ist der fertige Backendcode, generiert aus dem gemeinsamen geprüften Datenmodell. **apps-script/Index.html** ist die kleine Oberfläche der bestehenden Google-App: Sie lädt HTML/CSS/JavaScript aus derselben GitHub-Pages-App und verwendet in Google automatisch google.script.run. Konten und Zugriffseinstellungen der vorhandenen Bereitstellung bleiben erhalten. Farbstile werden getrennt von Aktivitäten in der Skripteigenschaft APP_THEMES gespeichert. Dafür ist bei dieser Erweiterung auch Code.gs in derselben bestehenden Apps-Script-Bereitstellung zu aktualisieren; reine Oberflächenänderungen benötigen diesen Schritt nicht.
 
 Wichtig beim Aktualisieren: Bereitstellen → Bereitstellungen verwalten → vorhandene aktive Bereitstellung bearbeiten → neue Version wählen → Bereitstellen. **Nicht „Neue Bereitstellung“ verwenden**, wenn die bisherige URL bleiben soll. Die vorherige Version kann über die Versionsauswahl wiederhergestellt werden.
 

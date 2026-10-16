@@ -1,3 +1,4 @@
+import {setupThemes} from './theme-ui.js';
 import {setupChartViewer} from './chart-view.js';
 import {setupIdentity} from './identity.js';
 import {detectBarcode,normalizeBarcode,localDate,validDate,statistics,csv} from './core.js';
@@ -22,7 +23,7 @@ function render(){
  $('export').disabled=!entries.length;$('reset').disabled=!entries.length||busy||store.isCached();$('reset').textContent=store.isGroup()?'Meine Einträge löschen':'Alle Einträge löschen';
  const names=groupStats(entries).leaderboard.map(p=>p.name);$('known-people').replaceChildren(...names.map(n=>{const o=el('option');o.value=n;return o;}));
  renderDashboard(state,$('person-name').value,{group:store.isGroup()});
- renderHistory();controls();
+ renderHistory();controls();themeUI.update(state,$('person-name').value,{blocked:busy||store.isCached()});
 }
 function renderHistory(){
  const type=$('filter').value,q=$('search').value.trim().toLocaleLowerCase('de-DE'),person=$('person-filter').value;
@@ -42,7 +43,8 @@ $('save-form').addEventListener('submit',async e=>{e.preventDefault();if(!pendin
 function manualEntry(input){const signature=JSON.stringify(input);if(attemptedManual?.signature===signature)return attemptedManual.entry;const entry=createEntry(input);attemptedManual={signature,entry};return entry;}
 document.querySelectorAll('[data-quick]').forEach(button=>button.addEventListener('click',async()=>{try{const entry=manualEntry({person:name(),type:button.dataset.quick,date:$('manual-date').value});if(await perform(()=>store.save(entry),`${TYPES[entry.type].name} für ${entry.person} erfasst · ${money(entry.amountCents)}.`))attemptedManual=null;}catch(e){showError(e);}}));
 $('custom-form').addEventListener('submit',async event=>{event.preventDefault();try{const entry=manualEntry({person:name(),type:'custom',date:$('manual-date').value,title:$('custom-title').value,amountCents:parseMoney($('custom-value').value)});if(await perform(()=>store.save(entry),'Deine Ersparnis wurde gespeichert.')){attemptedManual=null;$('custom-title').value='';$('custom-value').value='';}}catch(e){showError(e);}});
-setupIdentity({render,scannerOnly});
+const themeUI=setupThemes({onSelect:async theme=>{try{return await perform(()=>store.setTheme(name(),theme),'Farbstil gespeichert.');}catch(error){showError(error);return false;}},isGroup:store.isGroup});
+setupIdentity({render,scannerOnly});themeUI.update(state,$('person-name').value,{blocked:false});
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();window.scrollTo({top:0,behavior:'smooth'});});
 for(const id of ['filter','person-filter'])$(id).addEventListener('change',()=>{historyLimit=10;renderHistory();});$('search').addEventListener('input',()=>{historyLimit=10;renderHistory();});$('history-more').addEventListener('click',()=>{historyLimit+=10;renderHistory();});
 $('export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([csv(state.entries)],{type:'text/csv;charset=utf-8'})),link=el('a');link.href=url;link.download='draussen-'+localDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
