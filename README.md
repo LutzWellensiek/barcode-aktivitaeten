@@ -37,6 +37,14 @@ Optional kann eine externe Gruppenverbindung eingerichtet werden. Diese ist im B
 
 Namen sind Zuordnungen innerhalb einer vertrauensvollen Gruppe, keine persönlichen Benutzerkonten. Wie bisher kann jemand einen anderen Namen eingeben. Im Gruppenmodus werden in der Oberfläche nur Einträge des ausgewählten Namens gelöscht und ein Reset betrifft nur diesen Namen. Lokaler Reset leert die lokale Sammlung.
 
+## Name auf dem Home-Bildschirm
+
+Die lokale Namensspeicherung verwendet weiterhin localStorage und IndexedDB. Falls die Google-Einbettung im Home-Bildschirm-Modus beides blockiert, kann die App ohne Gerätekennung keinen Namen aus Sensoren erkennen. Sie sichert den ausgewählten Namen zusätzlich im URL-Fragment der bestehenden Google-App über google.script.history/URL; der bestehende /exec-Endpunkt bleibt gleich. Gespeicherte lokale Namen haben Vorrang vor einem fremden Startlink; eine verspätete Wiederherstellung überschreibt keine neue Eingabe.
+
+Einmal oben den Namen eingeben, dann im Einstellungsrad bei **Name auf diesem Gerät** den **Startlink öffnen**. In Safari über **Teilen → Zum Home-Bildschirm** ein neues Symbol anlegen und das alte ersetzen. Der persönliche Link enthält den gewählten Namen; beim Öffnen wird er auch mit gesperrtem Browserspeicher ausgefüllt. Ein altes Symbol mit der namenlosen Startadresse kann die App nicht automatisch umschreiben. Das Öffnen des allgemeinen Links auf einem Gerät ohne verfügbaren Speicher erfordert weiterhin eine Auswahl. Kein Fingerprinting, keine Sensor- oder neuen Kontoberechtigungen.
+
+[Google: Browserhistorie in HTML-Web-Apps](https://developers.google.com/apps-script/guides/html/reference/history) und [URL-Fragment auslesen](https://developers.google.com/apps-script/guides/html/reference/url). Für diese Änderung reicht die Veröffentlichung der statischen Oberfläche; die bestehende Google-Bereitstellung bleibt auf Version 31.
+
 ## Kamera, Datenschutz und Export
 
 Beim Antippen wird die Kamera direkt per getUserMedia angefragt, ohne Audio. Eine dauerhaft gespeicherte Sperre muss im Browser auf Fragen/Zulassen geändert werden; die App kann sie nicht umgehen. HTTPS ist erforderlich, localhost ist zum Entwickeln zulässig. Kamera stoppt nach erfolgreichem Scan sowie beim Verlassen der Seite; zwei gleiche Lesungen bestätigen einen Kamerascan.
@@ -61,6 +69,6 @@ Dann http://127.0.0.1:4173 öffnen. Build erzeugt dist/ sowie apps-script/Code.g
 
 Die Browserprüfungen laufen mit Chromium-Mobilprofil und WebKit-iPhone-Profil. Windows-WebKit besitzt weder Canvas-Kamerastreams noch eine Web-Audio-API; Playwright-WebKit scheitert bei Offline-Neuladen mit Service Worker. Diese jeweiligen Tests sind ausdrücklich übersprungen, Chromium prüft die Pfade. Ton-Schalter, Namensspeicherung und Fehlerfälle werden auch in WebKit geprüft; tatsächliche Klangausgabe wird nur bei vorhandener Audio-API geprüft. Ein physischer iPhone-Test bleibt erforderlich. Echte Gruppendaten werden nicht für automatisierte Testbuchungen verwendet.
 
-Struktur: src/core.js (Barcode), freebies.js (Preise/Erfolge/Statistik), db.js (atomare lokale Speicherung/Migration), store.js + group-bridge.js (gemeinsame Daten), camera-ui.js (Kamera und Rückgabe), dashboard.js (Gruppenansichten), chart-view.js (große interaktive Diagrammansicht), identity.js (Name und heutiges Datum), sounds.js + sound-ui.js (eigene Klänge und Namenseinstellung), app.js (Ablauf), apps-script/ (Google-Anbindung), tests/ (Kernlogik, simuliertes Backend, Browser).
+Struktur: src/core.js (Barcode), freebies.js (Preise/Erfolge/Statistik), db.js (atomare lokale Speicherung/Migration), store.js + group-bridge.js (gemeinsame Daten), camera-ui.js (Kamera und Rückgabe), dashboard.js (Gruppenansichten), chart-view.js (große interaktive Diagrammansicht), identity.js (Name, persönlicher Startlink und heutiges Datum), date-fields.js (einheitliche Anzeige mit nativer Datumsauswahl), sounds.js + sound-ui.js (eigene Klänge und Namenseinstellung), app.js (Ablauf), apps-script/ (Google-Anbindung), tests/ (Kernlogik, simuliertes Backend, Browser).
 
 [Google: HTML-Service und Serverkommunikation](https://developers.google.com/apps-script/guides/html/communication) · [Google: Web-Apps](https://developers.google.com/apps-script/guides/web) · [ZXing](https://github.com/zxing-js/browser). Lizenzen siehe THIRD_PARTY_NOTICES.md und dist/licenses/.

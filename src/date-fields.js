@@ -1,0 +1,3 @@
+import {validDate} from './core.js';
+export function refreshDateFields(){for(const input of document.querySelectorAll('.date-control input[type=date]')){const label=input.parentElement.querySelector('.date-display');label.textContent=validDate(input.value)?new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(input.value+'T12:00:00')):'Datum wählen';}}
+export function setupDateFields(){for(const input of document.querySelectorAll('.date-control input[type=date]')){for(const event of ['input','change'])input.addEventListener(event,refreshDateFields);input.addEventListener('click',event=>{if(event.isTrusted&&!input.disabled)try{input.showPicker?.();}catch{}});}refreshDateFields();}

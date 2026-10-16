@@ -133,3 +133,12 @@ Veröffentlichung ae6a669 erfolgreich. Die bestehende Google-Bereitstellung wurd
 Nach Veröffentlichung: neun gezielte Sound-Browserprüfungen bestanden; die tatsächlich fehlende Audio-API des Windows-WebKit-Testbrowsers bleibt explizit übersprungen. Die veröffentlichte Darstellung wurde erneut bei 320/390/1280 px in beiden Browsern geprüft, ohne Überlauf oder JavaScript-Fehler.
 
 [Erfolgreiche Tests und Veröffentlichung der Soundeffekte](https://github.com/LutzWellensiek/barcode-aktivitaeten/actions/runs/38886596345)
+
+
+## Zahnrad, Datum und Home-Bildschirm-Name, 16.10.2026
+
+Symmetrisches eigenes Zahnrad ohne einseitige Transformation; Kreis und Zahnkontur haben dieselbe Mitte. Datum und Kalendersymbol sind in einer gemeinsamen 48-px-Einfassung mittig ausgerichtet, während der native Date-Input und der Systemkalender zugänglich bleiben. Beide Datumsfelder aktualisieren die sichtbare deutsche Datumsanzeige bei Auswahl, Ticketprüfung und Tageswechsel.
+
+Zusätzliche Wiederherstellung des Namens aus einem persönlichen URL-Fragment über Googles offizielle History-/URL-API. Name bleibt lokal bevorzugt; verspätete Antworten dürfen aktuelle Eingaben einschließlich bewussten Leerens nicht überschreiben. Change/Blur lösen bei bereits verarbeiteter Eingabe keinen weiteren Aufbau der Rangliste aus. In Einstellungen ist der persönliche Startlink mit Öffnen/Kopieren und manueller Ausweichanzeige verfügbar. Bei bestehendem Home-Bildschirm-Symbol mit namenloser Startadresse ist einmalige Neuanlage durch den Nutzer erforderlich. Ohne Speicher und ohne persönlichen Startlink ist eine automatische Gerätezuordnung nicht möglich; Sensoren/Fingerprinting werden nicht verwendet.
+
+Lokal 76 Browserprüfungen bestanden, vier bekannte Windows-WebKit-Einschränkungen übersprungen. Neue Fälle in beiden Browsern: vollständig gesperrter Browser-Speicher, neue unabhängige Sitzung mit persönlichem Startlink, Vorrang des vorhandenen Gerätenamens, verspätete URL-Antwort, bewusstes Leeren sowie SVG-Mittelpunkte und Feldausrichtung bei 320/375/390/430/768/1280 px. Bisherige Namens-, Tageswechsel-, Schnellbuchungs- und Fokusprüfungen bleiben erfolgreich. Ein physisches iPhone/Home-Bildschirm-Symbol ist kein automatisierter Gerätetest.
