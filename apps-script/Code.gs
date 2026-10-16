@@ -7,7 +7,7 @@ function doGet() {
 }
 function runAppRequest(request) {
  const lock=LockService.getScriptLock();
- try {lock.waitLock(30000);return {ok:true,state:dispatch_(request||{})};}
+ try {lock.waitLock(30000);return {ok:true,state:String(request?.action||'').startsWith('photo')?photoDispatch_(request):dispatch_(request||{})};}
  catch(error){return {ok:false,error:String(error.message||error)};}
  finally {try{lock.releaseLock();}catch(error){}}
 }
@@ -61,10 +61,10 @@ function dispatch_(request){
  }else if(action==='delete'||action==='assign'){
   const name=FreebieDomain.cleanName(data.name),entry=state.entries.find(e=>e.id===String(data.id));if(!entry)return state;
   const ids=s.getRange(2,5,Math.max(1,s.getLastRow()-1),1).getValues(),index=ids.findIndex(row=>String(row[0])===entry.id)+2;
-  if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');s.deleteRow(index);}
+  if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');photoRetireEntries_([entry.id]);s.deleteRow(index);}
   else{if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
  }else if(action==='reset'){
-  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
+  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name);}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
  }else if(action==='sound'){
   const name=FreebieDomain.cleanName(data.name),key=FreebieDomain.personKey(name);if(typeof data.enabled!=='boolean')throw new Error('Ungültige Ton-Einstellung.');state.sounds[key]=data.enabled;PropertiesService.getScriptProperties().setProperty('APP_SOUNDS',JSON.stringify(state.sounds));
  }else if(action==='theme'){
@@ -79,3 +79,33 @@ function dispatch_(request){
  }else throw new Error('Unbekannte Aktion.');
  const props=PropertiesService.getScriptProperties();props.setProperty('APP_REVISION',String(state.revision+1));SpreadsheetApp.flush();return read_();
 }
+
+// Photo APIs expose only images belonging to a live activity, never arbitrary Drive IDs.
+function photoConfig_(){const p=PropertiesService.getScriptProperties();return {available:!!p.getProperty('PHOTO_FOLDER_ID')&&p.getProperty('PHOTO_ACCESS_MODE')==='link',local:false};}
+function photoSheet_(){return sheet_('DraussenFotos',['ID','Aktivität-ID','Name','Aktivitätsdatum','Hochgeladen','Datei-ID','Vorschau-ID','Breite','Höhe','Aktiv']);}
+function photoRows_(){const s=book_().getSheetByName('DraussenFotos');if(!s)return [];return s.getDataRange().getValues().slice(1).map(function(r,i){return {id:String(r[0]),entryId:String(r[1]),person:text_(r[2]),date:r[3] instanceof Date?Utilities.formatDate(r[3],Session.getScriptTimeZone(),'yyyy-MM-dd'):String(r[3]),uploadedAt:r[4] instanceof Date?r[4].toISOString():String(r[4]),fileId:String(r[5]),thumbId:String(r[6]),width:Number(r[7]),height:Number(r[8]),active:r[9]===true||String(r[9])==='true',row:i+2};});}
+function photoMeta_(p,entry){return {id:p.id,entryId:p.entryId,person:p.person,date:p.date,uploadedAt:p.uploadedAt,width:p.width,height:p.height,type:entry.type,title:entry.title||''};}
+function photoBytes_(value,limit){if(typeof value!=='string'||value.length>limit||!/^\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(value))throw new Error('Bitte ein gültiges, verkleinertes JPG-Foto senden.');const bytes=Utilities.base64Decode(value);if(bytes.length<20||(bytes[bytes.length-2]&255)!==255||(bytes[bytes.length-1]&255)!==217)throw new Error('Das Foto ist unvollständig. Bitte erneut auswählen.');return bytes;}
+function photoDispatch_(request){
+ const action=request.action,data=request.data||{};if(action==='photoConfig')return photoConfig_();if(!photoConfig_().available)throw new Error('Der gemeinsame Fotospeicher wird noch eingerichtet. Deine Aktivität bleibt gespeichert.');
+ const state=read_(),entries=new Map(state.entries.map(function(e){return [e.id,e];})),photos=photoRows_(),live=photos.filter(function(p){return p.active&&entries.has(p.entryId);});
+ if(action==='photoList'){const sorted=live.sort(function(a,b){return b.uploadedAt.localeCompare(a.uploadedAt)||b.id.localeCompare(a.id);}),offset=data.cursor?sorted.findIndex(function(p){return p.id===String(data.cursor);})+1:0;if(data.cursor&&!offset)throw new Error('Der Foto-Feed hat sich geändert. Bitte neu laden.');const items=sorted.slice(offset,offset+10);return {items:items.map(function(p){return photoMeta_(p,entries.get(p.entryId));}),nextCursor:offset+items.length<sorted.length?items[items.length-1].id:''};}
+ if(action==='photoImage'){const p=live.find(function(p){return p.id===String(data.id);});if(!p)throw new Error('Dieses Foto ist nicht mehr verfügbar.');const id=data.full===true?p.fileId:p.thumbId;if(!/^[a-zA-Z0-9_-]{1,200}$/.test(id))throw new Error('Ungültige Foto-ID.');const response=UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});if(response.getResponseCode()!==200)throw new Error('Das Bild konnte gerade nicht geladen werden. Bitte erneut versuchen.');return {data:Utilities.base64Encode(response.getContent())};}
+ if(action==='photoUpload'){
+  const entry=entries.get(String(data.entryId));if(!entry||FreebieDomain.personKey(FreebieDomain.cleanName(data.name))!==FreebieDomain.personKey(entry.person))throw new Error('Diese Aktivität ist nicht mehr für deinen Namen verfügbar.');
+  const prior=live.find(function(p){return p.entryId===entry.id;});if(prior)return {photo:photoMeta_(prior,entry)};
+  const image=data.image||{},full=photoBytes_(image.full,700000),thumb=photoBytes_(image.thumb,160000);if(!Number.isInteger(image.width)||!Number.isInteger(image.height)||image.width<1||image.height<1||image.width>1600||image.height>1600)throw new Error('Ungültige Bildgröße.');
+  const folder=PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID'),id=Utilities.getUuid(),created=[];let written=false;
+  try{function create(bytes,part){const file=Drive.Files.create({name:id+'-'+part+'.jpg',mimeType:'image/jpeg',parents:[folder],appProperties:{draussenPhoto:id,entryId:entry.id,part:part}},Utilities.newBlob(bytes,'image/jpeg',id+'-'+part+'.jpg'),{fields:'id'});created.push(file.id);return file.id;}
+   const fileId=create(full,'foto'),thumbId=create(thumb,'vorschau'),p={id:id,entryId:entry.id,person:entry.person,date:entry.date,uploadedAt:new Date().toISOString(),fileId:fileId,thumbId:thumbId,width:image.width,height:image.height,active:true};photoSheet_().appendRow([p.id,p.entryId,safeCell_(p.person),p.date,p.uploadedAt,p.fileId,p.thumbId,p.width,p.height,true]);written=true;return {photo:photoMeta_(p,entry)};
+  }catch(error){if(!written)created.forEach(function(id){try{Drive.Files.update({trashed:true},id);}catch(ignore){}});throw new Error('Foto konnte nicht gespeichert werden. Deine Aktivität bleibt erhalten. Bitte erneut versuchen.');}
+ }
+ if(action==='photoDelete'){const p=live.find(function(p){return p.id===String(data.id);});if(!p)return {deleted:true};if(FreebieDomain.personKey(FreebieDomain.cleanName(data.name))!==FreebieDomain.personKey(p.person))throw new Error('Bitte den zugehörigen Namen wählen.');Drive.Files.update({trashed:true},p.fileId);Drive.Files.update({trashed:true},p.thumbId);photoSheet_().getRange(p.row,10).setValue(false);return {deleted:true};}
+ throw new Error('Unbekannte Foto-Aktion.');
+}
+// Editor-only initializer: underscore functions cannot be invoked by public google.script.run.
+function initializePhotoStorage_(){const props=PropertiesService.getScriptProperties();let id=props.getProperty('PHOTO_FOLDER_ID');if(!id){const folder=Drive.Files.create({name:'Draußen Fotos',mimeType:'application/vnd.google-apps.folder'},null,{fields:'id'});id=folder.id;props.setProperty('PHOTO_FOLDER_ID',id);}photoSheet_();props.setProperty('PHOTO_ACCESS_MODE','link');console.log('Foto-Speicher eingerichtet: https://drive.google.com/drive/folders/'+id);return {ready:true};}
+
+function photoRetireEntries_(ids){const photos=photoRows_().filter(function(p){return p.active&&ids.indexOf(p.entryId)>=0;});for(const p of photos){Drive.Files.update({trashed:true},p.fileId);Drive.Files.update({trashed:true},p.thumbId);photoSheet_().getRange(p.row,10).setValue(false);}}
+
+function verifyPhotoStorage_(){const folder=PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID');if(!folder)throw new Error('Bitte zuerst initializePhotoStorage_ ausführen.');const bytes=Utilities.newBlob('Draußen Foto-Test – üäß 0123456789').getBytes();let id;try{id=Drive.Files.create({name:'Draußen Speichertest.tmp',parents:[folder],mimeType:'application/octet-stream'},Utilities.newBlob(bytes,'application/octet-stream'),{fields:'id'}).id;const r=UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()}});if(Utilities.base64Encode(r.getContent())!==Utilities.base64Encode(bytes))throw new Error('Speichertest: Daten stimmen nicht überein.');console.log('Drive-Speichertest erfolgreich. Keine Foto-Feed- oder Aktivitätsdaten angelegt.');}finally{if(id)Drive.Files.update({trashed:true},id);}}

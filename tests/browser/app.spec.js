@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures.js';
 const karren='506605898833117757135878',stadtbad='1910134162040907456759';
 async function openTicket(page){if(!await page.locator('#ticket-panel').evaluate(e=>e.open))await page.locator('#ticket-summary').click();}
 async function openHistory(page){if(!await page.locator('#history-panel').evaluate(e=>e.open))await page.locator('#history-panel>summary').click();}

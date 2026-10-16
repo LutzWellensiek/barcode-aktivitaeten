@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures.js';
 async function ready(page){await page.goto('./');await expect(page.locator('#offline-status')).toContainText('Offline bereit');}
 async function quick(page,type){await page.locator(`[data-quick=${type}]`).click();await expect(page.locator('#toast')).toContainText('erfasst');}
 test('name, four quick actions, custom savings, badges and chart persist',async({page})=>{

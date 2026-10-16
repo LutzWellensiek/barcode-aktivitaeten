@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures.js';
 async function monitor(page,{broken=false}={}){await page.addInitScript(({broken})=>{window.__audio=[];const Native=window.AudioContext||window.webkitAudioContext;window.__audioSupported=!!Native;if(broken){window.AudioContext=class{constructor(){throw Error('Audio unavailable');}};return;}if(!Native)return;window.AudioContext=class extends Native{constructor(...args){super(...args);window.__audio.push({event:'context'});}createOscillator(){const node=super.createOscillator(),set=node.frequency.setValueAtTime.bind(node.frequency),start=node.start.bind(node);let frequency;node.frequency.setValueAtTime=(f,...args)=>{frequency=f;return set(f,...args);};node.start=(...args)=>{window.__audio.push({event:'tone',frequency,state:this.state});return start(...args);};return node;}};},{broken});}
 async function ready(page){await page.goto('./');await expect(page.locator('#offline-status')).toContainText('Offline bereit');}
 async function clear(page){await page.evaluate(()=>{window.__audio=[];});}

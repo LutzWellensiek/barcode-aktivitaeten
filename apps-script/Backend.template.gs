@@ -6,7 +6,7 @@ function doGet() {
 }
 function runAppRequest(request) {
  const lock=LockService.getScriptLock();
- try {lock.waitLock(30000);return {ok:true,state:dispatch_(request||{})};}
+ try {lock.waitLock(30000);return {ok:true,state:String(request?.action||'').startsWith('photo')?photoDispatch_(request):dispatch_(request||{})};}
  catch(error){return {ok:false,error:String(error.message||error)};}
  finally {try{lock.releaseLock();}catch(error){}}
 }
@@ -60,10 +60,10 @@ function dispatch_(request){
  }else if(action==='delete'||action==='assign'){
   const name=FreebieDomain.cleanName(data.name),entry=state.entries.find(e=>e.id===String(data.id));if(!entry)return state;
   const ids=s.getRange(2,5,Math.max(1,s.getLastRow()-1),1).getValues(),index=ids.findIndex(row=>String(row[0])===entry.id)+2;
-  if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');s.deleteRow(index);}
+  if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');photoRetireEntries_([entry.id]);s.deleteRow(index);}
   else{if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
  }else if(action==='reset'){
-  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
+  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name);}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
  }else if(action==='sound'){
   const name=FreebieDomain.cleanName(data.name),key=FreebieDomain.personKey(name);if(typeof data.enabled!=='boolean')throw new Error('Ungültige Ton-Einstellung.');state.sounds[key]=data.enabled;PropertiesService.getScriptProperties().setProperty('APP_SOUNDS',JSON.stringify(state.sounds));
  }else if(action==='theme'){

@@ -1,0 +1,12 @@
+import * as db from './db.js';
+import * as store from './store.js';
+import {groupRequest} from './group-bridge.js';
+import {personKey} from './freebies.js';
+const call=(action,data={})=>groupRequest(store.connectionConfig(),action,data);
+export const photoConfig=()=>store.isGroup()?call('photoConfig'):Promise.resolve({available:true,local:true});
+async function localPhotos(){const [meta,entries]=await Promise.all([db.metaAll(),db.allEntries()]),ids=new Set(entries.map(e=>e.id));return meta.filter(r=>r.key.startsWith('photo:')&&r.value?.id&&ids.has(r.value.entryId)).map(r=>r.value);}
+function metadata(photo){const {full,thumb,...meta}=photo;return meta;}
+export async function listPhotos(cursor=''){if(store.isGroup())return call('photoList',{cursor});const photos=(await localPhotos()).sort((a,b)=>b.uploadedAt.localeCompare(a.uploadedAt)||b.id.localeCompare(a.id)),offset=cursor?photos.findIndex(p=>p.id===cursor)+1:0,items=photos.slice(offset,offset+10);return {items:items.map(metadata),nextCursor:offset+items.length<photos.length?items.at(-1).id:''};}
+export async function photoImage(id,full=false){if(store.isGroup())return call('photoImage',{id,full});const photo=(await localPhotos()).find(p=>p.id===id),image=photo&&await db.getPhotoImage(id);if(!image)throw new Error('Dieses Foto ist nicht mehr verfügbar.');return {data:full?image.full:image.thumb};}
+export async function uploadPhoto(entry,image){if(store.isGroup())return call('photoUpload',{entryId:entry.id,name:entry.person,image});const saved=await db.getMeta('photo:'+entry.id);if(saved?.value)return {photo:metadata(saved.value)};const current=(await db.allEntries()).find(e=>e.id===entry.id);if(!current||personKey(current.person)!==personKey(entry.person))throw new Error('Diese Aktivität ist nicht mehr verfügbar.');const photo={id:entry.id,entryId:entry.id,person:entry.person,type:entry.type,title:entry.title,date:entry.date,uploadedAt:new Date().toISOString(),width:image.width,height:image.height};try{await db.addPhoto(photo,image);}catch(error){if(error?.name!=='ConstraintError')throw error;const existing=await db.getMeta('photo:'+entry.id);if(!existing?.value)throw error;return {photo:existing.value};}return {photo};}
+export async function deletePhoto(id,name){if(store.isGroup())return call('photoDelete',{id,name});const photo=(await localPhotos()).find(p=>p.id===id);if(photo&&personKey(photo.person)!==personKey(name))throw new Error('Bitte den Namen des Fotos wählen.');await db.removePhoto(id);return {deleted:true};}

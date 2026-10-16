@@ -26,5 +26,5 @@ console.log(`Built dist · ${files.length+1} assets · ${version}`);
 
 // The Apps Script backend shares the validated domain model with the browser.
 const domain=await build({entryPoints:['src/freebies.js'],bundle:true,format:'iife',globalName:'FreebieDomain',target:'es2020',minify:true,write:false});
-const backend=(await readFile('apps-script/Backend.template.gs','utf8')).replace('/* DOMAIN_BUNDLE */',domain.outputFiles[0].text);
+const backend=(await readFile('apps-script/Backend.template.gs','utf8')).replace('/* DOMAIN_BUNDLE */',domain.outputFiles[0].text)+'\n'+await readFile('apps-script/Photos.backend.gs','utf8');
 await writeFile('apps-script/Code.gs',backend);
