@@ -4,11 +4,18 @@
 function doGet() {
  return HtmlService.createHtmlOutputFromFile('Index').setTitle('Draußen').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+// Read requests never hold the shared writer lock, including Drive transfers.
+var requestContext_={};
+function locked_(fn){if(requestContext_.locked)return fn();const lock=LockService.getScriptLock();lock.waitLock(5000);requestContext_={locked:true};try{return fn();}finally{requestContext_.locked=false;lock.releaseLock();}}
+function retryable_(error){if(typeof error.retryable==='boolean')return error.retryable;return !/^(Bitte |Ungültig|Unbekannt|Bereits erfasst|Das Foto ist unvollständig|Diese Aktivität ist nicht mehr|Dieses Foto ist nicht mehr|Dieser Kommentar wurde|Dieser Eintrag |Neue Druckaufträge|Das jährliche|Die Zusatzspalten|In den Zusatzspalten|Dafür hast du)/.test(String(error.message||error));}
+function revision_(key){return Number(PropertiesService.getScriptProperties().getProperty(key)||0);}
+function bumpPhotoRevision_(){const p=PropertiesService.getScriptProperties();p.setProperty('PHOTO_REVISION',String(revision_('PHOTO_REVISION')+1));requestContext_.photos=null;}
+function cachedJSON_(key,read,seconds){let cache;try{cache=CacheService.getScriptCache();const text=cache.get(key);if(text)return JSON.parse(text);}catch(ignore){}const value=read();if(cache){try{const text=JSON.stringify(value);if(text.length<90000)cache.put(key,text,seconds);}catch(ignore){}}return value;}
+function cachedState_(force){return force||requestContext_.locked?read_():cachedJSON_('state:'+revision_('APP_REVISION'),read_,30);}
 function runAppRequest(request) {
- const lock=LockService.getScriptLock();
- try {lock.waitLock(30000);return {ok:true,state:String(request?.action||'').startsWith('photo')?photoDispatch_(request):dispatch_(request||{})};}
- catch(error){return {ok:false,error:String(error.message||error)};}
- finally {try{lock.releaseLock();}catch(error){}}
+ request=request||{};requestContext_={};const action=String(request.action||'read');
+ try {let state;if(action==='photoUpload')state=photoUploadConcurrent_(request.data||{});else if(['read','photoConfig','photoList','photoImage','photoSocial','photoComments'].indexOf(action)>=0)state=action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);else state=locked_(function(){return action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);});return {ok:true,state:state};}
+ catch(error){return {ok:false,error:String(error.message||error),retryable:retryable_(error)};}
 }
 function doPost(e) {
  let request={};try{request=JSON.parse(e.parameter.payload||'{}');}catch(error){}
@@ -19,7 +26,7 @@ function doPost(e) {
  const response=JSON.stringify(Object.assign({channel:'unterwegs-group',id:request.id},result)).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
  return HtmlService.createHtmlOutput('<!doctype html><script>window.top.postMessage('+response+','+JSON.stringify(origin)+');</script>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
-function book_(){const property=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');const ss=property?SpreadsheetApp.openById(property):SpreadsheetApp.getActiveSpreadsheet();if(!ss)throw new Error('Bitte das Skript an eure Tabelle binden oder SPREADSHEET_ID in den Skripteigenschaften setzen.');return ss;}
+function book_(){if(requestContext_.book)return requestContext_.book;const property=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');const ss=property?SpreadsheetApp.openById(property):SpreadsheetApp.getActiveSpreadsheet();if(!ss)throw new Error('Bitte das Skript an eure Tabelle binden oder SPREADSHEET_ID in den Skripteigenschaften setzen.');requestContext_.book=ss;return ss;}
 function sheet_(name,headers){const ss=book_();let s=ss.getSheetByName(name);if(!s){s=ss.insertSheet(name);s.appendRow(headers);}return s;}
 function safeCell_(value){const text=String(value||'');return /^[=+@\-]/.test(text)?"'"+text:text;}
 function text_(value){return String(value||'').replace(/^'(?=[=+@\-])/,'');}
@@ -28,14 +35,14 @@ function themes_(){const themes=Object.create(null);let saved={};try{saved=JSON.
 function sounds_(){const sounds=Object.create(null);let saved={};try{saved=JSON.parse(PropertiesService.getScriptProperties().getProperty('APP_SOUNDS')||'{}');}catch(error){}if(saved&&typeof saved==='object'&&!Array.isArray(saved))Object.keys(saved).forEach(function(key){if(typeof saved[key]==='boolean')sounds[key]=saved[key];});return sounds;}
 function read_(){
  const s=sheet_('Fahrten',['Zeitstempel','Name','Aktion','Wert','ID','Barcode','Besuchsdatum','Decodierung']);
- if(s.getMaxColumns()<8)s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());
- const expected=['ID','Barcode','Besuchsdatum','Decodierung'],headers=s.getRange(1,5,1,4).getValues()[0];if(headers.some((v,i)=>v&&String(v)!==expected[i]))throw new Error('Die Zusatzspalten E:H sind bereits belegt. Bitte vor der Erweiterung prüfen.');if(headers.every(v=>!v)&&s.getLastRow()>1&&s.getRange(2,5,s.getLastRow()-1,4).getValues().some(row=>row.some(v=>v!=='')))throw new Error('In den Zusatzspalten E:H sind bereits Daten vorhanden. Es wurde nichts überschrieben.');s.getRange(1,5,1,4).setValues([expected]);
+ if(s.getMaxColumns()<8){if(!requestContext_.locked)return locked_(read_);s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());}
+ const expected=['ID','Barcode','Besuchsdatum','Decodierung'],headers=s.getRange(1,5,1,4).getValues()[0];if(headers.some((v,i)=>v&&String(v)!==expected[i]))throw new Error('Die Zusatzspalten E:H sind bereits belegt. Bitte vor der Erweiterung prüfen.');if(headers.every(v=>!v)&&s.getLastRow()>1&&s.getRange(2,5,s.getLastRow()-1,4).getValues().some(row=>row.some(v=>v!=='')))throw new Error('In den Zusatzspalten E:H sind bereits Daten vorhanden. Es wurde nichts überschrieben.');if(headers.some((v,i)=>String(v||'')!==expected[i])){if(!requestContext_.locked)return locked_(read_);s.getRange(1,5,1,4).setValues([expected]);}
  const rows=s.getDataRange().getValues(),entries=[],timezone=Session.getScriptTimeZone();
  for(let i=1;i<rows.length;i++){
   const r=rows[i],person=text_(r[1]).trim();if(!person||FreebieDomain.personKey(person)==='person')continue;
   const a=text_(r[2]),fixed={Karren:'karren',Stadtbad:'stadtbad',Freibier:'freibier',Apfel:'apfel'};let type=fixed[a]||'other',title='';
   if(a.indexOf('Individuell:')===0){type='custom';title=a.slice(12).trim();}else if(a.indexOf('Drucken')===0){type='print';title=a.replace(/^Drucken:?\s*/,'');}else if(!fixed[a])title=a.replace(/^Andere Aktivität:?\s*/,'');
-  let id=String(r[4]||'');if(!id){id=Utilities.getUuid();s.getRange(i+1,5).setValue(id);}
+  let id=String(r[4]||'');if(!id){if(!requestContext_.locked)return locked_(read_);id=Utilities.getUuid();s.getRange(i+1,5).setValue(id);}
   let time=r[0] instanceof Date?r[0]:new Date(r[0]),valid=!isNaN(time.getTime());
   let date=r[6] instanceof Date?Utilities.formatDate(r[6],timezone,'yyyy-MM-dd'):String(r[6]||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(date))date=valid?Utilities.formatDate(time,timezone,'yyyy-MM-dd'):'';
   const amount=typeof r[3]==='number'?r[3]:Number(String(r[3]).replace(',','.'));const entry={id,person,type,title,date,amountCents:isFinite(amount)?Math.round(amount*100):0,scannedAt:valid?time.toISOString():'',source:r[5]?'scan':'manual'};
@@ -47,8 +54,7 @@ function read_(){
  return {entries,votes,villages,themes:themes_(),sounds:sounds_(),revision:Number(PropertiesService.getScriptProperties().getProperty('APP_REVISION')||0)};
 }
 function dispatch_(request){
- const action=request.action||'read',data=request.data||{},state=read_(),s=book_().getSheetByName('Fahrten');
- if(action==='read')return state;
+ const action=request.action||'read',data=request.data||{};if(action==='read'){const revision=revision_('APP_REVISION');if(!data.force&&Number.isInteger(data.revision)&&data.revision===revision)return {unchanged:true,revision:revision};return cachedState_(!!data.force);}const state=read_(),s=book_().getSheetByName('Fahrten');
  if(action==='add'){
   const input=data.entry||{},entry=FreebieDomain.createEntry(Object.assign({},input,{id:input.id||Utilities.getUuid()}));
   const prior=state.entries.find(e=>e.id===entry.id||entry.barcode&&e.barcode===entry.barcode);
@@ -61,9 +67,9 @@ function dispatch_(request){
   const name=FreebieDomain.cleanName(data.name),entry=state.entries.find(e=>e.id===String(data.id));if(!entry)return state;
   const ids=s.getRange(2,5,Math.max(1,s.getLastRow()-1),1).getValues(),index=ids.findIndex(row=>String(row[0])===entry.id)+2;
   if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');photoRetireEntries_([entry.id]);s.deleteRow(index);}
-  else{if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
+  else{if(FreebieDomain.personKey(entry.person)===FreebieDomain.personKey(name))return state;if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
  }else if(action==='reset'){
-  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name);}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
+  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues(),ids=Array.isArray(data.ids)?new Set(data.ids.map(String)):null;photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name)&&(!ids||ids.has(e.id));}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name)&&(!ids||ids.has(String(rows[i][4]))))s.deleteRow(i+1);
  }else if(action==='sound'){
   const name=FreebieDomain.cleanName(data.name),key=FreebieDomain.personKey(name);if(typeof data.enabled!=='boolean')throw new Error('Ungültige Ton-Einstellung.');state.sounds[key]=data.enabled;PropertiesService.getScriptProperties().setProperty('APP_SOUNDS',JSON.stringify(state.sounds));
  }else if(action==='theme'){

@@ -1,4 +1,5 @@
-import {createReader,cameraMessage} from './scanner.js';
+import {cameraMessage} from './camera-errors.js';
+const loadReader=()=>import('./scanner.js');
 export function setupCamera(reviewCode){
 const $=id=>document.getElementById(id);let cameraGeneration=0,cameraStarting=false,controls=null,reader=null,cameraStream=null;
 function stopCamera(){
@@ -26,7 +27,7 @@ async function startCamera(){
     // Call from the tap handler, before waiting for reader setup or other work.
     const requestedStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
     if(generation!==cameraGeneration){requestedStream.getTracks().forEach(track=>track.stop());return;}
-    cameraStream=requestedStream;reader=createReader();
+    cameraStream=requestedStream;const {createReader}=await loadReader();if(generation!==cameraGeneration)return;reader=createReader();
     const nextControls=await reader.decodeFromStream(requestedStream,$('camera'),(result,error,scanControls)=>{
       if(generation!==cameraGeneration){scanControls?.stop();return;}
       if(!result)return;const code=result.getText(),now=Date.now();
@@ -41,7 +42,7 @@ $('start-camera').addEventListener('click',startCamera);
 $('retry-camera').addEventListener('click',startCamera);
 $('photo').addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file)return;stopCamera();const url=URL.createObjectURL(file);$('camera-status').textContent='Ticketfoto wird auf diesem Gerät gelesen …';
-  try{const result=await createReader().decodeFromImageUrl(url);await reviewCode(result.getText());$('camera-status').textContent='Barcode aus Foto gelesen. Bitte Angaben prüfen.';}
+  try{const {createReader}=await loadReader();const result=await createReader().decodeFromImageUrl(url);await reviewCode(result.getText());$('camera-status').textContent='Barcode aus Foto gelesen. Bitte Angaben prüfen.';}
   catch{$('camera-status').textContent='Kein vollständiger I25-Barcode im Foto erkannt. Bitte scharfes Foto mit weißem Rand um den gesamten Barcode wählen oder die Nummer eingeben.';}
   finally{URL.revokeObjectURL(url);e.target.value='';}
 });

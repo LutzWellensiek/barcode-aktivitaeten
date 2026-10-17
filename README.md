@@ -5,7 +5,7 @@ Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design mit ver
 ## Enthalten
 
 - Zwei Ansichten: bisheriges Draußen und ein Foto-Feed. Schwebende Liquid-Glass-Leiste oder Links-/Rechts-Wischen wechseln die Ansicht; im Feed normal vertikal scrollen, neueste Uploads zuerst. Diagramm-, Formular- und Dialoggesten bleiben separat.
-- Nach jeder neuen Buchung freiwillige Fotoabfrage mit nativer Handy-Kamera über Dateiauswahl (capture=environment), Bildauswahl oder Überspringen. Die Buchung ist bereits gespeichert. Fotos können im Verlauf ergänzt werden.
+- Nach jeder neuen Buchung freiwillige Fotoabfrage mit nativer Handy-Kamera über Dateiauswahl (capture=environment), Bildauswahl oder Überspringen. Die Buchung ist bereits lokal vorgemerkt; die Bestätigung der gemeinsamen Speicherung erfolgt im Hintergrund. Fotos können im Verlauf ergänzt werden.
 - Ein Foto pro Aktivität mit Person, Aktivitätssymbol und Besuchsdatum. Uploadzeit bestimmt die Reihenfolge. Kleine Vorschaubilder, zehn Einträge pro Seite, Nachladen beim Scrollen, große Bildansicht und bestätigtes Entfernen. Uploadwiederholung zählt keine zweite Aktivität.
 
 - Sechs Farbstile über das Einstellungsrad: Wald & Salbei, Lavendel, Ozean, Abendrot, Rosenquarz und Mitternacht. Pro normalisiertem Namen gespeichert; in der Google-App geräteübergreifend über die bestehende Gruppenanbindung, im lokalen Modus in diesem Browser. Gemeinsam gespart steht direkt unter der Kopfzeile.
@@ -51,6 +51,16 @@ Am oberen Rand in Draußen oder Fotos nach unten ziehen und loslassen, um die Gr
 
 Technische Grundlagen: [Google: erlaubte Downloads im HTML-Service](https://developers.google.com/apps-script/guides/html/restrictions) und [MDN: Scrollverkettung und eingebettete Dokumente](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overscroll-behavior).
 
+## Reaktionsgeschwindigkeit und automatische Wiederholung
+
+Aktivitäten, Likes, Kommentare, Foto-Uploads und Einstellungen werden sofort dargestellt und im Hintergrund übertragen. Ausstehende Vorgänge sind als solche gekennzeichnet. Erst die Serverbestätigung löst den Buchungs-Erfolgston aus. Verbindungsfehler werden mit wachsendem Abstand automatisch erneut versucht, ohne zusätzlichen Wiederholen-Knopf. Ungültige Eingaben oder fehlende Namenszuordnung werden als endgültiger Fehler angezeigt und aus der vorläufigen Ansicht entfernt.
+
+Die Warteschlange liegt getrennt von bestätigten Daten in IndexedDB 4 und wird nach erneutem Öffnen weiterbearbeitet. Stabile Aktivitäts-, Kommentar- und Fotozuordnungen verhindern doppelte Einträge bei verlorenen Antworten. Befehle behalten ihre Reihenfolge; Foto-Uploads laufen getrennt. Atomare, erneuerte Leases verhindern gleichzeitige Bearbeitung desselben Vorgangs durch mehrere offene Tabs. Falls der Browser Speicher blockiert oder das Speichervolumen erschöpft ist, läuft die Übertragung im Arbeitsspeicher und die App bittet, bis zum Abschluss geöffnet zu bleiben. Ein Betriebssystem kann eine geschlossene App anhalten; eine unbegrenzt laufende Hintergrundübertragung wird nicht zugesichert.
+
+Der zuletzt gespeicherte Gruppenstand wird zuerst angezeigt und anschließend aktualisiert. Regelmäßige Abfragen prüfen zunächst nur die Versionsnummer, spätestens alle fünf Minuten wird vollständig geladen; Herunterziehen erzwingt die vollständige Aktualisierung. Feed-Karten bleiben beim Ansichtswechsel bestehen. Ein Feed-Aufruf liefert Metadaten und Reaktionen gemeinsam. Bilder werden nur nahe dem sichtbaren Bereich geladen, gleichzeitig angeforderte Bilder zusammengefasst und Vorschau/Großbild wiederverwendet. Der Bildspeicher ist auf 50 Bilder und ungefähr 12 MB Base64-Zeichen begrenzt, gespeicherte Bilder werden bei erneutem Abruf höchstens eine Stunde wiederverwendet. Benutzeraktionen haben Vorrang vor weiteren Vorschaubildern.
+
+Serverseitig halten Bildabrufe und Drive-Dateierstellung keine gemeinsame Schreibsperre. Die Zuordnung neuer Fotos wird kurz gesperrt und erneut auf die gültige Aktivität geprüft; konkurrierende Uploads erzeugen nur einen Fotoeintrag. Die seltenen Löschvorgänge bewahren die bisherige zusammenhängende Drive-/Tabellenbereinigung. Gruppen- und Foto-Metadaten liegen maximal 30 Sekunden in Googles Cache, Änderungen durch die App invalidieren ihn über Versionsnummern. Manuelle Tabellenänderungen erscheinen spätestens bei einer vollständigen Aktualisierung. Der große I25-Decoder wird erst beim Starten eines Scans geladen; die lokale PWA speichert ihn weiterhin für Offline-Scans.
+
 ## Foto-Speicher und Freigabe
 
 Im Google-Modus liegen verkleinerte JPG-Dateien samt Vorschau im von der App angelegten Drive-Ordner **Draußen Fotos**. Das neue Blatt **DraussenFotos** enthält nur IDs und Metadaten. Die ersten vier Spalten von Fahrten bleiben unverändert. Bilder werden über die bestehende Apps-Script-Verbindung geladen; keine öffentlichen Drive-Freigabelinks und keine Nutzerdaten im Git-Repository.
@@ -63,7 +73,7 @@ Für die einmalige Einrichtung im Editor vorübergehend `function SetupFotos(){r
 
 Fotos werden auf dem Gerät durch Canvas neu als JPG codiert (maximal 1600 px längste Seite, Vorschau 480 px, begrenzte Uploadgröße); ursprüngliche EXIF-Metadaten werden nicht übernommen. Native Datei-Kamera und tatsächlicher iPhone/Home-Bildschirm-Dialog müssen am Gerät geprüft werden. Falls die Kameraauswahl nicht öffnet, bleibt die Bildauswahl verfügbar; eine externe Foto-Kamera wurde in diesem ersten Versuch bewusst noch nicht ergänzt. Der Barcode-Scanner nutzt weiterhin sein separates Fenster.
 
-Foto-Entfernen verschiebt Drive-Dateien samt Vorschau in den Papierkorb und lässt die finanzielle Aktivität erhalten. Beim Löschen einer Aktivität werden zugehörige Fotos ebenfalls entfernt. Fehlgeschlagene Uploads lassen die Buchung bestehen. Ein erneuter erfolgreicher Upload pro Aktivität ist idempotent; teilweise erzeugte Dateien werden bei Fehlern bereinigt. Im lokalen PWA-Modus liegen Bilder getrennt von Metadaten in IndexedDB 3; gemeinsame Foto-Uploads erfolgen dort nur bei einer explizit eingerichteten Gruppenverbindung.
+Foto-Entfernen verschiebt Drive-Dateien samt Vorschau in den Papierkorb und lässt die finanzielle Aktivität erhalten. Beim Löschen einer Aktivität werden zugehörige Fotos ebenfalls entfernt. Fehlgeschlagene Uploads lassen die Buchung bestehen. Ein erneuter erfolgreicher Upload pro Aktivität ist idempotent; teilweise erzeugte Dateien werden bei Fehlern bereinigt. Im lokalen PWA-Modus liegen Bilder getrennt von Metadaten in IndexedDB 4; gemeinsame Foto-Uploads erfolgen dort nur bei einer explizit eingerichteten Gruppenverbindung.
 
 ## Name auf dem Home-Bildschirm
 

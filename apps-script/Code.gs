@@ -5,11 +5,18 @@ var FreebieDomain=(()=>{var g=Object.defineProperty;var v=Object.getOwnPropertyD
 function doGet() {
  return HtmlService.createHtmlOutputFromFile('Index').setTitle('Draußen').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+// Read requests never hold the shared writer lock, including Drive transfers.
+var requestContext_={};
+function locked_(fn){if(requestContext_.locked)return fn();const lock=LockService.getScriptLock();lock.waitLock(5000);requestContext_={locked:true};try{return fn();}finally{requestContext_.locked=false;lock.releaseLock();}}
+function retryable_(error){if(typeof error.retryable==='boolean')return error.retryable;return !/^(Bitte |Ungültig|Unbekannt|Bereits erfasst|Das Foto ist unvollständig|Diese Aktivität ist nicht mehr|Dieses Foto ist nicht mehr|Dieser Kommentar wurde|Dieser Eintrag |Neue Druckaufträge|Das jährliche|Die Zusatzspalten|In den Zusatzspalten|Dafür hast du)/.test(String(error.message||error));}
+function revision_(key){return Number(PropertiesService.getScriptProperties().getProperty(key)||0);}
+function bumpPhotoRevision_(){const p=PropertiesService.getScriptProperties();p.setProperty('PHOTO_REVISION',String(revision_('PHOTO_REVISION')+1));requestContext_.photos=null;}
+function cachedJSON_(key,read,seconds){let cache;try{cache=CacheService.getScriptCache();const text=cache.get(key);if(text)return JSON.parse(text);}catch(ignore){}const value=read();if(cache){try{const text=JSON.stringify(value);if(text.length<90000)cache.put(key,text,seconds);}catch(ignore){}}return value;}
+function cachedState_(force){return force||requestContext_.locked?read_():cachedJSON_('state:'+revision_('APP_REVISION'),read_,30);}
 function runAppRequest(request) {
- const lock=LockService.getScriptLock();
- try {lock.waitLock(30000);return {ok:true,state:String(request?.action||'').startsWith('photo')?photoDispatch_(request):dispatch_(request||{})};}
- catch(error){return {ok:false,error:String(error.message||error)};}
- finally {try{lock.releaseLock();}catch(error){}}
+ request=request||{};requestContext_={};const action=String(request.action||'read');
+ try {let state;if(action==='photoUpload')state=photoUploadConcurrent_(request.data||{});else if(['read','photoConfig','photoList','photoImage','photoSocial','photoComments'].indexOf(action)>=0)state=action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);else state=locked_(function(){return action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);});return {ok:true,state:state};}
+ catch(error){return {ok:false,error:String(error.message||error),retryable:retryable_(error)};}
 }
 function doPost(e) {
  let request={};try{request=JSON.parse(e.parameter.payload||'{}');}catch(error){}
@@ -20,7 +27,7 @@ function doPost(e) {
  const response=JSON.stringify(Object.assign({channel:'unterwegs-group',id:request.id},result)).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
  return HtmlService.createHtmlOutput('<!doctype html><script>window.top.postMessage('+response+','+JSON.stringify(origin)+');</script>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
-function book_(){const property=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');const ss=property?SpreadsheetApp.openById(property):SpreadsheetApp.getActiveSpreadsheet();if(!ss)throw new Error('Bitte das Skript an eure Tabelle binden oder SPREADSHEET_ID in den Skripteigenschaften setzen.');return ss;}
+function book_(){if(requestContext_.book)return requestContext_.book;const property=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');const ss=property?SpreadsheetApp.openById(property):SpreadsheetApp.getActiveSpreadsheet();if(!ss)throw new Error('Bitte das Skript an eure Tabelle binden oder SPREADSHEET_ID in den Skripteigenschaften setzen.');requestContext_.book=ss;return ss;}
 function sheet_(name,headers){const ss=book_();let s=ss.getSheetByName(name);if(!s){s=ss.insertSheet(name);s.appendRow(headers);}return s;}
 function safeCell_(value){const text=String(value||'');return /^[=+@\-]/.test(text)?"'"+text:text;}
 function text_(value){return String(value||'').replace(/^'(?=[=+@\-])/,'');}
@@ -29,14 +36,14 @@ function themes_(){const themes=Object.create(null);let saved={};try{saved=JSON.
 function sounds_(){const sounds=Object.create(null);let saved={};try{saved=JSON.parse(PropertiesService.getScriptProperties().getProperty('APP_SOUNDS')||'{}');}catch(error){}if(saved&&typeof saved==='object'&&!Array.isArray(saved))Object.keys(saved).forEach(function(key){if(typeof saved[key]==='boolean')sounds[key]=saved[key];});return sounds;}
 function read_(){
  const s=sheet_('Fahrten',['Zeitstempel','Name','Aktion','Wert','ID','Barcode','Besuchsdatum','Decodierung']);
- if(s.getMaxColumns()<8)s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());
- const expected=['ID','Barcode','Besuchsdatum','Decodierung'],headers=s.getRange(1,5,1,4).getValues()[0];if(headers.some((v,i)=>v&&String(v)!==expected[i]))throw new Error('Die Zusatzspalten E:H sind bereits belegt. Bitte vor der Erweiterung prüfen.');if(headers.every(v=>!v)&&s.getLastRow()>1&&s.getRange(2,5,s.getLastRow()-1,4).getValues().some(row=>row.some(v=>v!=='')))throw new Error('In den Zusatzspalten E:H sind bereits Daten vorhanden. Es wurde nichts überschrieben.');s.getRange(1,5,1,4).setValues([expected]);
+ if(s.getMaxColumns()<8){if(!requestContext_.locked)return locked_(read_);s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());}
+ const expected=['ID','Barcode','Besuchsdatum','Decodierung'],headers=s.getRange(1,5,1,4).getValues()[0];if(headers.some((v,i)=>v&&String(v)!==expected[i]))throw new Error('Die Zusatzspalten E:H sind bereits belegt. Bitte vor der Erweiterung prüfen.');if(headers.every(v=>!v)&&s.getLastRow()>1&&s.getRange(2,5,s.getLastRow()-1,4).getValues().some(row=>row.some(v=>v!=='')))throw new Error('In den Zusatzspalten E:H sind bereits Daten vorhanden. Es wurde nichts überschrieben.');if(headers.some((v,i)=>String(v||'')!==expected[i])){if(!requestContext_.locked)return locked_(read_);s.getRange(1,5,1,4).setValues([expected]);}
  const rows=s.getDataRange().getValues(),entries=[],timezone=Session.getScriptTimeZone();
  for(let i=1;i<rows.length;i++){
   const r=rows[i],person=text_(r[1]).trim();if(!person||FreebieDomain.personKey(person)==='person')continue;
   const a=text_(r[2]),fixed={Karren:'karren',Stadtbad:'stadtbad',Freibier:'freibier',Apfel:'apfel'};let type=fixed[a]||'other',title='';
   if(a.indexOf('Individuell:')===0){type='custom';title=a.slice(12).trim();}else if(a.indexOf('Drucken')===0){type='print';title=a.replace(/^Drucken:?\s*/,'');}else if(!fixed[a])title=a.replace(/^Andere Aktivität:?\s*/,'');
-  let id=String(r[4]||'');if(!id){id=Utilities.getUuid();s.getRange(i+1,5).setValue(id);}
+  let id=String(r[4]||'');if(!id){if(!requestContext_.locked)return locked_(read_);id=Utilities.getUuid();s.getRange(i+1,5).setValue(id);}
   let time=r[0] instanceof Date?r[0]:new Date(r[0]),valid=!isNaN(time.getTime());
   let date=r[6] instanceof Date?Utilities.formatDate(r[6],timezone,'yyyy-MM-dd'):String(r[6]||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(date))date=valid?Utilities.formatDate(time,timezone,'yyyy-MM-dd'):'';
   const amount=typeof r[3]==='number'?r[3]:Number(String(r[3]).replace(',','.'));const entry={id,person,type,title,date,amountCents:isFinite(amount)?Math.round(amount*100):0,scannedAt:valid?time.toISOString():'',source:r[5]?'scan':'manual'};
@@ -48,8 +55,7 @@ function read_(){
  return {entries,votes,villages,themes:themes_(),sounds:sounds_(),revision:Number(PropertiesService.getScriptProperties().getProperty('APP_REVISION')||0)};
 }
 function dispatch_(request){
- const action=request.action||'read',data=request.data||{},state=read_(),s=book_().getSheetByName('Fahrten');
- if(action==='read')return state;
+ const action=request.action||'read',data=request.data||{};if(action==='read'){const revision=revision_('APP_REVISION');if(!data.force&&Number.isInteger(data.revision)&&data.revision===revision)return {unchanged:true,revision:revision};return cachedState_(!!data.force);}const state=read_(),s=book_().getSheetByName('Fahrten');
  if(action==='add'){
   const input=data.entry||{},entry=FreebieDomain.createEntry(Object.assign({},input,{id:input.id||Utilities.getUuid()}));
   const prior=state.entries.find(e=>e.id===entry.id||entry.barcode&&e.barcode===entry.barcode);
@@ -62,9 +68,9 @@ function dispatch_(request){
   const name=FreebieDomain.cleanName(data.name),entry=state.entries.find(e=>e.id===String(data.id));if(!entry)return state;
   const ids=s.getRange(2,5,Math.max(1,s.getLastRow()-1),1).getValues(),index=ids.findIndex(row=>String(row[0])===entry.id)+2;
   if(action==='delete'){if(FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Bitte den Namen des zugehörigen Eintrags wählen.');photoRetireEntries_([entry.id]);s.deleteRow(index);}
-  else{if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
+  else{if(FreebieDomain.personKey(entry.person)===FreebieDomain.personKey(name))return state;if(entry.person)throw new Error('Dieser Eintrag ist bereits zugeordnet.');s.getRange(index,2).setValue(safeCell_(name));}
  }else if(action==='reset'){
-  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues();photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name);}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name))s.deleteRow(i+1);
+  const name=FreebieDomain.cleanName(data.name),rows=s.getDataRange().getValues(),ids=Array.isArray(data.ids)?new Set(data.ids.map(String)):null;photoRetireEntries_(state.entries.filter(function(e){return FreebieDomain.personKey(e.person)===FreebieDomain.personKey(name)&&(!ids||ids.has(e.id));}).map(function(e){return e.id;}));for(let i=rows.length-1;i>=1;i--)if(FreebieDomain.personKey(text_(rows[i][1]))===FreebieDomain.personKey(name)&&(!ids||ids.has(String(rows[i][4]))))s.deleteRow(i+1);
  }else if(action==='sound'){
   const name=FreebieDomain.cleanName(data.name),key=FreebieDomain.personKey(name);if(typeof data.enabled!=='boolean')throw new Error('Ungültige Ton-Einstellung.');state.sounds[key]=data.enabled;PropertiesService.getScriptProperties().setProperty('APP_SOUNDS',JSON.stringify(state.sounds));
  }else if(action==='theme'){
@@ -83,25 +89,16 @@ function dispatch_(request){
 // Photo APIs expose only images belonging to a live activity, never arbitrary Drive IDs.
 function photoConfig_(){const p=PropertiesService.getScriptProperties();return {available:!!p.getProperty('PHOTO_FOLDER_ID')&&p.getProperty('PHOTO_ACCESS_MODE')==='link',local:false};}
 function photoSheet_(){return sheet_('DraussenFotos',['ID','Aktivität-ID','Name','Aktivitätsdatum','Hochgeladen','Datei-ID','Vorschau-ID','Breite','Höhe','Aktiv']);}
-function photoRows_(){const s=book_().getSheetByName('DraussenFotos');if(!s)return [];return s.getDataRange().getValues().slice(1).map(function(r,i){return {id:String(r[0]),entryId:String(r[1]),person:text_(r[2]),date:r[3] instanceof Date?Utilities.formatDate(r[3],Session.getScriptTimeZone(),'yyyy-MM-dd'):String(r[3]),uploadedAt:r[4] instanceof Date?r[4].toISOString():String(r[4]),fileId:String(r[5]),thumbId:String(r[6]),width:Number(r[7]),height:Number(r[8]),active:r[9]===true||String(r[9])==='true',row:i+2};});}
+function photoRowsFresh_(){const s=book_().getSheetByName('DraussenFotos');if(!s)return [];return s.getDataRange().getValues().slice(1).map(function(r,i){return {id:String(r[0]),entryId:String(r[1]),person:text_(r[2]),date:r[3] instanceof Date?Utilities.formatDate(r[3],Session.getScriptTimeZone(),'yyyy-MM-dd'):String(r[3]),uploadedAt:r[4] instanceof Date?r[4].toISOString():String(r[4]),fileId:String(r[5]),thumbId:String(r[6]),width:Number(r[7]),height:Number(r[8]),active:r[9]===true||String(r[9])==='true',row:i+2};});}
 function photoMeta_(p,entry){return {id:p.id,entryId:p.entryId,person:p.person,date:p.date,uploadedAt:p.uploadedAt,width:p.width,height:p.height,type:entry.type,title:entry.title||''};}
 function photoBytes_(value,limit){if(typeof value!=='string'||value.length>limit||!/^\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(value))throw new Error('Bitte ein gültiges, verkleinertes JPG-Foto senden.');const bytes=Utilities.base64Decode(value);if(bytes.length<20||(bytes[bytes.length-2]&255)!==255||(bytes[bytes.length-1]&255)!==217)throw new Error('Das Foto ist unvollständig. Bitte erneut auswählen.');return bytes;}
 function photoDispatch_(request){
  const action=request.action,data=request.data||{};if(action==='photoConfig')return photoConfig_();if(!photoConfig_().available)throw new Error('Der gemeinsame Fotospeicher wird noch eingerichtet. Deine Aktivität bleibt gespeichert.');
- const state=read_(),entries=new Map(state.entries.map(function(e){return [e.id,e];})),photos=photoRows_(),live=photos.filter(function(p){return p.active&&entries.has(p.entryId);});
+ const state=cachedState_(false),entries=new Map(state.entries.map(function(e){return [e.id,e];})),photos=photoRows_(),live=photos.filter(function(p){return p.active&&entries.has(p.entryId);});
  if(['photoSocial','photoLike','photoComments','photoComment','photoCommentDelete'].indexOf(action)>=0)return photoSocial_(request,live);
- if(action==='photoList'){const sorted=live.sort(function(a,b){return b.uploadedAt.localeCompare(a.uploadedAt)||b.id.localeCompare(a.id);}),offset=data.cursor?sorted.findIndex(function(p){return p.id===String(data.cursor);})+1:0;if(data.cursor&&!offset)throw new Error('Der Foto-Feed hat sich geändert. Bitte neu laden.');const items=sorted.slice(offset,offset+10);return {items:items.map(function(p){return photoMeta_(p,entries.get(p.entryId));}),nextCursor:offset+items.length<sorted.length?items[items.length-1].id:''};}
+ if(action==='photoList'){const sorted=live.sort(function(a,b){return b.uploadedAt.localeCompare(a.uploadedAt)||b.id.localeCompare(a.id);}),offset=data.cursor?sorted.findIndex(function(p){return p.id===String(data.cursor);})+1:0;if(data.cursor&&!offset)throw new Error('Der Foto-Feed hat sich geändert. Bitte neu laden.');const items=sorted.slice(offset,offset+10);return {items:items.map(function(p){return photoMeta_(p,entries.get(p.entryId));}),nextCursor:offset+items.length<sorted.length?items[items.length-1].id:'',social:photoSocial_({action:'photoSocial',data:{ids:items.map(function(p){return p.id;}),name:data.name||''}},live)};}
  if(action==='photoImage'){const p=live.find(function(p){return p.id===String(data.id);});if(!p)throw new Error('Dieses Foto ist nicht mehr verfügbar.');const id=data.full===true?p.fileId:p.thumbId;if(!/^[a-zA-Z0-9_-]{1,200}$/.test(id))throw new Error('Ungültige Foto-ID.');const response=UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media',{headers:{Authorization:'Bearer '+ScriptApp.getOAuthToken()},muteHttpExceptions:true});if(response.getResponseCode()!==200)throw new Error('Das Bild konnte gerade nicht geladen werden. Bitte erneut versuchen.');return {data:Utilities.base64Encode(response.getContent())};}
- if(action==='photoUpload'){
-  const entry=entries.get(String(data.entryId));if(!entry||FreebieDomain.personKey(FreebieDomain.cleanName(data.name))!==FreebieDomain.personKey(entry.person))throw new Error('Diese Aktivität ist nicht mehr für deinen Namen verfügbar.');
-  const prior=live.find(function(p){return p.entryId===entry.id;});if(prior)return {photo:photoMeta_(prior,entry)};
-  const image=data.image||{},full=photoBytes_(image.full,700000),thumb=photoBytes_(image.thumb,160000);if(!Number.isInteger(image.width)||!Number.isInteger(image.height)||image.width<1||image.height<1||image.width>1600||image.height>1600)throw new Error('Ungültige Bildgröße.');
-  const folder=PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID'),id=Utilities.getUuid(),created=[];let written=false;
-  try{function create(bytes,part){const file=Drive.Files.create({name:id+'-'+part+'.jpg',mimeType:'image/jpeg',parents:[folder],appProperties:{draussenPhoto:id,entryId:entry.id,part:part}},Utilities.newBlob(bytes,'image/jpeg',id+'-'+part+'.jpg'),{fields:'id'});created.push(file.id);return file.id;}
-   const fileId=create(full,'foto'),thumbId=create(thumb,'vorschau'),p={id:id,entryId:entry.id,person:entry.person,date:entry.date,uploadedAt:new Date().toISOString(),fileId:fileId,thumbId:thumbId,width:image.width,height:image.height,active:true};photoSheet_().appendRow([p.id,p.entryId,safeCell_(p.person),p.date,p.uploadedAt,p.fileId,p.thumbId,p.width,p.height,true]);written=true;return {photo:photoMeta_(p,entry)};
-  }catch(error){if(!written)created.forEach(function(id){try{Drive.Files.update({trashed:true},id);}catch(ignore){}});throw new Error('Foto konnte nicht gespeichert werden. Deine Aktivität bleibt erhalten. Bitte erneut versuchen.');}
- }
- if(action==='photoDelete'){const p=live.find(function(p){return p.id===String(data.id);});if(!p)return {deleted:true};if(FreebieDomain.personKey(FreebieDomain.cleanName(data.name))!==FreebieDomain.personKey(p.person))throw new Error('Bitte den zugehörigen Namen wählen.');Drive.Files.update({trashed:true},p.fileId);Drive.Files.update({trashed:true},p.thumbId);photoSheet_().getRange(p.row,10).setValue(false);return {deleted:true};}
+ if(action==='photoDelete'){const p=live.find(function(p){return p.id===String(data.id);});if(!p)return {deleted:true};if(FreebieDomain.personKey(FreebieDomain.cleanName(data.name))!==FreebieDomain.personKey(p.person))throw new Error('Bitte den zugehörigen Namen wählen.');Drive.Files.update({trashed:true},p.fileId);Drive.Files.update({trashed:true},p.thumbId);photoSheet_().getRange(p.row,10).setValue(false);bumpPhotoRevision_();return {deleted:true};}
  throw new Error('Unbekannte Foto-Aktion.');
 }
 // Editor-only initializer: underscore functions cannot be invoked by public google.script.run.
@@ -113,16 +110,32 @@ function verifyPhotoStorage_(){const folder=PropertiesService.getScriptPropertie
 
 
 // Reactions stay in separate sheets and never change financial entries.
-function photoLikes_(){const s=book_().getSheetByName('DraussenLikes');return s?s.getDataRange().getValues().slice(1).map(function(r,i){return {photoId:String(r[0]),name:text_(r[1]),active:r[2]===true||String(r[2])==='true',row:i+2};}):[];}
-function photoComments_(){const s=book_().getSheetByName('DraussenKommentare');return s?s.getDataRange().getValues().slice(1).map(function(r,i){return {id:String(r[0]),photoId:String(r[1]),name:text_(r[2]),text:text_(r[3]),createdAt:r[4] instanceof Date?r[4].toISOString():String(r[4]),active:r[5]===true||String(r[5])==='true',row:i+2};}):[];}
-function photoSummary_(id,name,likes,comments){const keys=new Set(likes.filter(function(r){return r.photoId===id&&r.active;}).map(function(r){return FreebieDomain.personKey(r.name);}));return {likes:keys.size,liked:!!name&&keys.has(FreebieDomain.personKey(name)),comments:comments.filter(function(r){return r.photoId===id&&r.active;}).length};}
+function photoLikesFresh_(){const s=book_().getSheetByName('DraussenLikes');return s?s.getDataRange().getValues().slice(1).map(function(r,i){return {photoId:String(r[0]),name:text_(r[1]),active:r[2]===true||String(r[2])==='true',row:i+2};}):[];}
+function photoCommentsFresh_(){const s=book_().getSheetByName('DraussenKommentare');return s?s.getDataRange().getValues().slice(1).map(function(r,i){return {id:String(r[0]),photoId:String(r[1]),name:text_(r[2]),text:text_(r[3]),createdAt:r[4] instanceof Date?r[4].toISOString():String(r[4]),active:r[5]===true||String(r[5])==='true',row:i+2};}):[];}
+function photoSummary_(id,name,likes,comments){const keys=new Set(likes.filter(function(r){return r.photoId===id&&r.active;}).map(function(r){return FreebieDomain.personKey(r.name);}));return {version:revision_('PHOTO_REVISION'),likes:keys.size,liked:!!name&&keys.has(FreebieDomain.personKey(name)),comments:comments.filter(function(r){return r.photoId===id&&r.active;}).length};}
 function photoSocial_(request,live){const action=request.action,data=request.data||{},likes=photoLikes_(),comments=photoComments_(),name=String(data.name||'');
  if(action==='photoSocial'){const ids=Array.isArray(data.ids)?data.ids.slice(0,100).map(String):[];const result={};live.forEach(function(p){if(ids.indexOf(p.id)>=0)result[p.id]=photoSummary_(p.id,name,likes,comments);});return result;}
  const p=live.find(function(p){return p.id===String(data.id);});if(!p)throw new Error('Dieses Foto ist nicht mehr verfügbar.');
  if(action==='photoComments'){const rows=comments.filter(function(c){return c.photoId===p.id&&c.active;}).sort(function(a,b){return b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id);}),offset=data.cursor?rows.findIndex(function(c){return c.id===String(data.cursor);})+1:0;if(data.cursor&&!offset)throw new Error('Die Kommentare haben sich geändert. Bitte neu öffnen.');const items=rows.slice(offset,offset+20).map(function(c){return {id:c.id,name:c.name,text:c.text,createdAt:c.createdAt};});return {items:items,nextCursor:offset+items.length<rows.length?items[items.length-1].id:'',summary:photoSummary_(p.id,name,likes,comments)};}
  const clean=FreebieDomain.cleanName(name),key=FreebieDomain.personKey(clean);
- if(action==='photoLike'){if(typeof data.liked!=='boolean')throw new Error('Ungültige Like-Auswahl.');const s=sheet_('DraussenLikes',['Foto-ID','Name','Aktiv','Geändert']),prior=likes.filter(function(r){return r.photoId===p.id&&FreebieDomain.personKey(r.name)===key;});if(prior.length){s.getRange(prior[0].row,3,1,2).setValues([[data.liked,new Date().toISOString()]]);prior.slice(1).forEach(function(r){s.getRange(r.row,3).setValue(false);});}else s.appendRow([p.id,safeCell_(clean),data.liked,new Date().toISOString()]);return photoSummary_(p.id,clean,photoLikes_(),comments);}
- if(action==='photoComment'){const text=String(data.text||'').trim(),id=String(data.commentId||'');if(!text||text.length>500)throw new Error('Bitte einen Kommentar mit 1 bis 500 Zeichen schreiben.');if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw new Error('Ungültige Kommentar-ID.');const prior=comments.find(function(c){return c.id===id;});if(prior){if(prior.photoId!==p.id||FreebieDomain.personKey(prior.name)!==key||prior.text!==text)throw new Error('Dieser Kommentar wurde bereits anders gespeichert.');return {saved:true,summary:photoSummary_(p.id,clean,likes,comments)};}sheet_('DraussenKommentare',['ID','Foto-ID','Name','Kommentar','Erstellt','Aktiv']).appendRow([id,p.id,safeCell_(clean),safeCell_(text),new Date().toISOString(),true]);return {saved:true,summary:photoSummary_(p.id,clean,likes,photoComments_())};}
- if(action==='photoCommentDelete'){const comment=comments.find(function(c){return c.id===String(data.commentId)&&c.photoId===p.id;});if(comment&&FreebieDomain.personKey(comment.name)!==key)throw new Error('Bitte den Namen des Kommentars wählen.');if(comment)book_().getSheetByName('DraussenKommentare').getRange(comment.row,6).setValue(false);return {deleted:true,summary:photoSummary_(p.id,clean,likes,photoComments_())};}
+ if(action==='photoLike'){if(typeof data.liked!=='boolean')throw new Error('Ungültige Like-Auswahl.');const s=sheet_('DraussenLikes',['Foto-ID','Name','Aktiv','Geändert']),prior=likes.filter(function(r){return r.photoId===p.id&&FreebieDomain.personKey(r.name)===key;});if(prior.length){s.getRange(prior[0].row,3,1,2).setValues([[data.liked,new Date().toISOString()]]);prior.slice(1).forEach(function(r){s.getRange(r.row,3).setValue(false);});}else s.appendRow([p.id,safeCell_(clean),data.liked,new Date().toISOString()]);bumpPhotoRevision_();return photoSummary_(p.id,clean,photoLikes_(),comments);}
+ if(action==='photoComment'){const text=String(data.text||'').trim(),id=String(data.commentId||'');if(!text||text.length>500)throw new Error('Bitte einen Kommentar mit 1 bis 500 Zeichen schreiben.');if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw new Error('Ungültige Kommentar-ID.');const prior=comments.find(function(c){return c.id===id;});if(prior){if(prior.photoId!==p.id||FreebieDomain.personKey(prior.name)!==key||prior.text!==text)throw new Error('Dieser Kommentar wurde bereits anders gespeichert.');return {saved:true,summary:photoSummary_(p.id,clean,likes,comments)};}sheet_('DraussenKommentare',['ID','Foto-ID','Name','Kommentar','Erstellt','Aktiv']).appendRow([id,p.id,safeCell_(clean),safeCell_(text),new Date().toISOString(),true]);bumpPhotoRevision_();return {saved:true,summary:photoSummary_(p.id,clean,likes,photoComments_())};}
+ if(action==='photoCommentDelete'){const comment=comments.find(function(c){return c.id===String(data.commentId)&&c.photoId===p.id;});if(comment&&FreebieDomain.personKey(comment.name)!==key)throw new Error('Bitte den Namen des Kommentars wählen.');if(comment)book_().getSheetByName('DraussenKommentare').getRange(comment.row,6).setValue(false);bumpPhotoRevision_();return {deleted:true,summary:photoSummary_(p.id,clean,likes,photoComments_())};}
  throw new Error('Unbekannte Foto-Aktion.');
+}
+
+function photoRows_(){return requestContext_.locked?photoRowsFresh_():cachedJSON_('photos:'+revision_('PHOTO_REVISION'),photoRowsFresh_,30);}
+function photoLikes_(){return requestContext_.locked?photoLikesFresh_():cachedJSON_('likes:'+revision_('PHOTO_REVISION'),photoLikesFresh_,30);}
+function photoComments_(){return requestContext_.locked?photoCommentsFresh_():cachedJSON_('comments:'+revision_('PHOTO_REVISION'),photoCommentsFresh_,30);}
+function photoUploadConcurrent_(data){
+ if(!photoConfig_().available)throw new Error('Der gemeinsame Fotospeicher wird noch eingerichtet. Deine Aktivität bleibt gespeichert.');
+ const name=FreebieDomain.cleanName(data.name),entry=cachedState_(false).entries.find(function(e){return e.id===String(data.entryId);});
+ if(!entry||FreebieDomain.personKey(name)!==FreebieDomain.personKey(entry.person))throw new Error('Diese Aktivität ist nicht mehr für deinen Namen verfügbar.');
+ const prior=photoRows_().find(function(p){return p.entryId===entry.id&&p.active;});if(prior)return {photo:photoMeta_(prior,entry)};
+ const image=data.image||{},full=photoBytes_(image.full,700000),thumb=photoBytes_(image.thumb,160000);if(!Number.isInteger(image.width)||!Number.isInteger(image.height)||image.width<1||image.height<1||image.width>1600||image.height>1600)throw new Error('Ungültige Bildgröße.');
+ const folder=PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID'),id=Utilities.getUuid(),created=[];let committed=false,won=false,result;
+ try{function create(bytes,part){const f=Drive.Files.create({name:id+'-'+part+'.jpg',mimeType:'image/jpeg',parents:[folder],appProperties:{draussenPhoto:id,entryId:entry.id,part:part}},Utilities.newBlob(bytes,'image/jpeg',id+'-'+part+'.jpg'),{fields:'id'});created.push(f.id);return f.id;}
+ const fileId=create(full,'foto'),thumbId=create(thumb,'vorschau');
+ result=locked_(function(){const current=read_().entries.find(function(e){return e.id===entry.id;});if(!current||FreebieDomain.personKey(current.person)!==FreebieDomain.personKey(name))throw new Error('Diese Aktivität ist nicht mehr für deinen Namen verfügbar.');const duplicate=photoRowsFresh_().find(function(p){return p.entryId===entry.id&&p.active;});if(duplicate)return {photo:photoMeta_(duplicate,current)};const p={id:id,entryId:entry.id,person:current.person,date:current.date,uploadedAt:new Date().toISOString(),fileId:fileId,thumbId:thumbId,width:image.width,height:image.height,active:true};photoSheet_().appendRow([id,p.entryId,safeCell_(p.person),p.date,p.uploadedAt,fileId,thumbId,p.width,p.height,true]);committed=true;won=true;bumpPhotoRevision_();return {photo:photoMeta_(p,current)};});return result;
+ }finally{if(!won&&!committed)created.forEach(function(file){try{Drive.Files.update({trashed:true},file);}catch(ignore){}});}
 }

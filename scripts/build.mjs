@@ -1,13 +1,15 @@
 import {build} from 'esbuild';
-import {cp,mkdir,writeFile,readdir,readFile} from 'node:fs/promises';
+import {cp,mkdir,writeFile,readdir,readFile,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {deflateSync} from 'node:zlib';
+// Only remove generated chunks inside this project; never touch user source files.
+await rm(new URL('../dist/chunks/',import.meta.url),{recursive:true,force:true});
 await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
 await mkdir('dist/licenses',{recursive:true});
 for(const name of ['browser','library']) await cp(`node_modules/@zxing/${name}/LICENSE`,`dist/licenses/zxing-${name}.txt`);
 await cp('node_modules/@zxing/text-encoding/LICENSE.md','dist/licenses/zxing-text-encoding.txt');
 await cp('THIRD_PARTY_NOTICES.md','dist/licenses/THIRD_PARTY_NOTICES.md');
-await build({entryPoints:['src/app.js'],bundle:true,format:'esm',target:['safari15.4'],outfile:'dist/app.js',minify:true,legalComments:'eof'});
+await build({entryPoints:['src/app.js'],bundle:true,format:'esm',target:['safari15.4'],outdir:'dist',splitting:true,chunkNames:'chunks/[name]-[hash]',minify:true,legalComments:'eof'});
 // Dependency-free PNG encoder for install icons. No external fonts or remote assets.
 function crc(buffer){let c=0xffffffff;for(const b of buffer){c^=b;for(let i=0;i<8;i++)c=c&1?0xedb88320^(c>>>1):c>>>1;}return (c^0xffffffff)>>>0;}
 function chunk(type,data){const t=Buffer.from(type),size=Buffer.alloc(4),checksum=Buffer.alloc(4);size.writeUInt32BE(data.length);checksum.writeUInt32BE(crc(Buffer.concat([t,data])));return Buffer.concat([size,t,data,checksum]);}
