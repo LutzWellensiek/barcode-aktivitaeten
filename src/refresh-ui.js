@@ -5,7 +5,7 @@ export function setupRefresh({refresh,blocked,scannerOnly}){
  let start=null,distance=0,refreshing=false,hideTimer;
  const unavailable=()=>refreshing||blocked()||!!document.querySelector('dialog[open]');
  function reset(){start=null;distance=0;if(!refreshing){indicator.hidden=true;indicator.style.removeProperty('--pull');}}
- document.addEventListener('touchstart',event=>{reset();if(event.touches.length!==1||!top()||unavailable()||event.target.closest('input,textarea,select,button,a,summary,dialog,#chart-viewport,#savings-chart'))return;const t=event.touches[0];start={x:t.clientX,y:t.clientY};},{passive:true});
+ document.addEventListener('touchstart',event=>{reset();if(document.body.dataset.view==='photos'&&event.target.closest('#photo-feed'))return;if(event.touches.length!==1||!top()||unavailable()||event.target.closest('input,textarea,select,button,a,summary,dialog,#chart-viewport,#savings-chart'))return;const t=event.touches[0];start={x:t.clientX,y:t.clientY};},{passive:true});
  document.addEventListener('touchmove',event=>{if(!start)return;if(event.touches.length!==1||!top()||unavailable()){reset();return;}const t=event.touches[0],dx=t.clientX-start.x,dy=t.clientY-start.y;if(dy<0||Math.abs(dx)>Math.abs(dy)){reset();return;}if(dy<10)return;if(event.cancelable)event.preventDefault();distance=dy;indicator.hidden=false;indicator.style.setProperty('--pull',Math.min(60,dy*.4)+'px');indicator.textContent=dy>=90?'Loslassen zum Aktualisieren':'Zum Aktualisieren ziehen ↓';},{passive:false});
  document.addEventListener('touchend',()=>{const run=start&&distance>=90;start=null;distance=0;if(run)void perform();else reset();},{passive:true});
  document.addEventListener('touchcancel',reset,{passive:true});
