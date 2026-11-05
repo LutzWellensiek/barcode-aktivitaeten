@@ -2,8 +2,9 @@ import {TYPES,checkPrintBudget,personKey} from './freebies.js';
 let connection;
 export function openDB(){
  if(connection)return connection;
- connection=new Promise((resolve,reject)=>{const r=indexedDB.open('barcode-aktivitaeten',4);
+ connection=new Promise((resolve,reject)=>{const r=indexedDB.open('barcode-aktivitaeten',5);
   r.onupgradeneeded=event=>{const db=r.result,tx=r.transaction;let activities;if(!db.objectStoreNames.contains('activities')){activities=db.createObjectStore('activities',{keyPath:'id'});activities.createIndex('barcode','barcode',{unique:true});}else activities=tx.objectStore('activities');if(!db.objectStoreNames.contains('meta'))db.createObjectStore('meta',{keyPath:'key'});if(!db.objectStoreNames.contains('outbox'))db.createObjectStore('outbox',{keyPath:'id'});if(!db.objectStoreNames.contains('image-cache'))db.createObjectStore('image-cache',{keyPath:'key'});if(!db.objectStoreNames.contains('photo-images'))db.createObjectStore('photo-images',{keyPath:'id'});
+   if(!db.objectStoreNames.contains('proposals'))db.createObjectStore('proposals',{keyPath:'id'});if(!db.objectStoreNames.contains('proposal-images'))db.createObjectStore('proposal-images',{keyPath:'id'});
    if(event.oldVersion<2&&db.objectStoreNames.contains('entries')){const cursor=tx.objectStore('entries').openCursor();cursor.onsuccess=()=>{const c=cursor.result;if(!c)return;const e=c.value;activities.add({...e,id:'barcode:'+e.barcode,person:e.person||'',amountCents:e.amountCents??TYPES[e.type]?.cents??0,title:e.title||'',source:'scan'});c.continue();};}
   };r.onsuccess=()=>{r.result.onversionchange=()=>{r.result.close();connection=null;};resolve(r.result);};r.onerror=()=>reject(r.error);r.onblocked=()=>reject(new Error('Bitte andere App-Tabs schließen und neu laden, damit der Speicher aktualisiert werden kann.'));
  });return connection;
@@ -37,3 +38,8 @@ export async function outboxRenew(id,owner,until){const db=await openDB();return
 export const cachedImage=key=>run('image-cache','readonly',s=>s.get(key));
 export const deleteCachedImage=key=>run('image-cache','readwrite',s=>s.delete(key));
 export async function cacheImage(key,data){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction('image-cache','readwrite'),s=tx.objectStore('image-cache'),r=s.getAll();r.onsuccess=()=>{const rows=r.result.filter(x=>x.key!==key).sort((a,b)=>b.at-a.at);let bytes=data.length,count=1;s.put({key,data,at:Date.now()});for(const row of rows){bytes+=row.data.length;count++;if(bytes>12000000||count>50)s.delete(row.key);}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}
+
+export const allProposals=()=>run('proposals','readonly',s=>s.getAll());
+export const proposalImage=id=>run('proposal-images','readonly',s=>s.get(id));
+export async function addProposal(proposal,image){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(['proposals','proposal-images'],'readwrite');tx.objectStore('proposals').add(proposal);tx.objectStore('proposal-images').add({id:proposal.id,...image});tx.oncomplete=resolve;tx.onerror=event=>reject(event.target.error||tx.error);tx.onabort=()=>reject(tx.error);});}
+export async function changeProposal(id,change,image){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(['proposals','proposal-images'],'readwrite'),s=tx.objectStore('proposals'),r=s.get(id);let failure;r.onsuccess=()=>{try{if(!r.result)throw Error('Dieser Vorschlag ist nicht mehr verfügbar.');s.put(change(r.result));if(image)tx.objectStore('proposal-images').put({id,...image});}catch(error){failure=error;tx.abort();}};tx.oncomplete=resolve;tx.onerror=e=>{failure=failure||e.target.error||tx.error;};tx.onabort=()=>reject(failure||tx.error||Error('Speichern fehlgeschlagen.'));});}

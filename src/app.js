@@ -1,3 +1,5 @@
+import {setupActivities} from './activities-ui.js';
+import {setupNavigation} from './navigation-ui.js';
 import {setupSharing} from './share-ui.js';
 import {setupRefresh,setupLogoMotion} from './refresh-ui.js';
 import {setupPhotos} from './photo-ui.js';
@@ -29,7 +31,7 @@ function render(){refreshDateFields();
  $('export').disabled=!entries.length;$('reset').disabled=!entries.length||busy;$('reset').textContent=store.isGroup()?'Meine Einträge löschen':'Alle Einträge löschen';
  const names=groupStats(entries).leaderboard.map(p=>p.name);$('known-people').replaceChildren(...names.map(n=>{const o=el('option');o.value=n;return o;}));
  renderDashboard(state,$('person-name').value,{group:store.isGroup()});
- renderHistory();controls();photoUI.update(state,$('person-name').value);renderSync();themeUI.update(state,$('person-name').value,{blocked:busy});soundUI.update(state,$('person-name').value,{blocked:busy});
+ renderHistory();controls();photoUI.update(state,$('person-name').value);activitiesUI.updateName($('person-name').value);renderSync();themeUI.update(state,$('person-name').value,{blocked:busy});soundUI.update(state,$('person-name').value,{blocked:busy});
 }
 function renderHistory(){
  const type=$('filter').value,q=$('search').value.trim().toLocaleLowerCase('de-DE'),person=$('person-filter').value;
@@ -51,6 +53,8 @@ function manualEntry(input){const signature=JSON.stringify(input);if(attemptedMa
 document.querySelectorAll('[data-quick]').forEach(button=>button.addEventListener('click',async()=>{try{const entry=manualEntry({person:name(),type:button.dataset.quick,date:$('manual-date').value});if(await perform(()=>store.save(entry),`${TYPES[entry.type].name} für ${entry.person} erfasst · ${money(entry.amountCents)}.`,entry.type)){attemptedManual=null;photoUI.offer(entry);}}catch(e){showError(e);}}));
 $('custom-form').addEventListener('submit',async event=>{event.preventDefault();try{const entry=manualEntry({person:name(),type:'custom',date:$('manual-date').value,title:$('custom-title').value,amountCents:parseMoney($('custom-value').value)});if(await perform(()=>store.save(entry),'Deine Ersparnis wurde gespeichert.')){attemptedManual=null;photoUI.offer(entry);$('custom-title').value='';$('custom-value').value='';}}catch(e){showError(e);}});
 const photoUI=setupPhotos({confirmAction,notify:feedback,scannerOnly});
+const activitiesUI=setupActivities({notify:feedback,scannerOnly,goHome:()=>navigation.activate('normal')});
+const navigation=setupNavigation({scannerOnly,onChange:next=>{photoUI.setView(next);activitiesUI.setView(next);}});
 const soundUI=setupSounds({onToggle:enabled=>perform(()=>store.setSound(name(),enabled),'Ton-Einstellung gespeichert.',false),isGroup:store.isGroup});
 const themeUI=setupThemes({onSelect:async theme=>{try{return await perform(()=>store.setTheme(name(),theme),'Farbstil gespeichert.');}catch(error){showError(error);return false;}},isGroup:store.isGroup});
 setupDateFields();setupIdentity({render,scannerOnly});themeUI.update(state,$('person-name').value,{blocked:false});soundUI.update(state,$('person-name').value,{blocked:false});
@@ -59,7 +63,7 @@ for(const id of ['filter','person-filter'])$(id).addEventListener('change',()=>{
 $('export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([csv(state.entries)],{type:'text/csv;charset=utf-8'})),link=el('a');link.href=url;link.download='draussen-'+localDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);});
 $('reset').addEventListener('click',async()=>{try{const selected=store.isGroup()?name():'';if(await confirmAction(store.isGroup()?'Meine Einträge löschen?':'Alle Einträge löschen?',store.isGroup()?`Alle Einträge von ${selected} werden aus eurer gemeinsamen Gruppe gelöscht. Andere Personen bleiben erhalten.`:`Alle ${state.entries.length} Einträge dieses Geräts werden gelöscht. Bitte bei Bedarf vorher als CSV sichern.`)){if(await perform(()=>store.reset(selected),'Einträge gelöscht.')){pending=null;$('review').hidden=true;}}}catch(e){showError(e);}});
 $('detail-close').addEventListener('click',()=>$('detail-dialog').close());
-setupSharing();setupCamera(reviewCode);setupChartViewer();setupLogoMotion();setupRefresh({scannerOnly,blocked:()=>busy,refresh:async()=>{await refresh(true);if(store.isCached())throw new Error('Offline: Der letzte gespeicherte Stand wird angezeigt.');await photoUI.refresh();}});
+setupSharing();setupCamera(reviewCode);setupChartViewer();setupLogoMotion();setupRefresh({scannerOnly,blocked:()=>busy,refresh:async()=>{await refresh(true);if(store.isCached())throw new Error('Offline: Der letzte gespeicherte Stand wird angezeigt.');if(navigation.current()==='activities')await activitiesUI.refresh();else await photoUI.refresh();}});
 document.addEventListener('pointerdown',event=>{if(document.querySelector('dialog[open]'))return;for(const id of ['history-panel','ticket-panel']){const panel=$(id);if(panel.open&&!panel.contains(event.target)&&!(id==='ticket-panel'&&(pending||scannerOnly)))panel.open=false;}});
 channel?.addEventListener('message',()=>{if(!busy)void refresh().catch(showError);});let lastFocus=0;window.addEventListener('focus',()=>{if(ready&&!busy&&Date.now()-lastFocus>5000){lastFocus=Date.now();void refresh().catch(()=>{});}});
 setInterval(()=>{if(!scannerOnly&&store.isGroup()&&!busy&&!document.hidden)void refresh().catch(()=>{});},30000);

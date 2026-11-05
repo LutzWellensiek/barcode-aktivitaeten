@@ -14,7 +14,7 @@ function cachedJSON_(key,read,seconds){let cache;try{cache=CacheService.getScrip
 function cachedState_(force){return force||requestContext_.locked?read_():cachedJSON_('state:'+revision_('APP_REVISION'),read_,30);}
 function runAppRequest(request) {
  request=request||{};requestContext_={};const action=String(request.action||'read');
- try {let state;if(action==='photoUpload')state=photoUploadConcurrent_(request.data||{});else if(['read','photoConfig','photoList','photoImage','photoSocial','photoComments'].indexOf(action)>=0)state=action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);else state=locked_(function(){return action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);});return {ok:true,state:state};}
+ try {if(action.indexOf('voting')===0)votingMigrateLegacy_();let state;if(action==='votingCreate')state=votingCreate_(request.data||{});else if(action==='votingUpdate')state=votingUpdate_(request.data||{});else if(['votingRead','votingImage','votingComments'].indexOf(action)>=0)state=votingDispatch_(request);else if(action.indexOf('voting')===0)state=locked_(function(){return votingDispatch_(request);});else if(action==='photoUpload')state=photoUploadConcurrent_(request.data||{});else if(['read','photoConfig','photoList','photoImage','photoSocial','photoComments'].indexOf(action)>=0)state=action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);else state=locked_(function(){return action.indexOf('photo')===0?photoDispatch_(request):dispatch_(request);});return {ok:true,state:state};}
  catch(error){return {ok:false,error:String(error.message||error),retryable:retryable_(error)};}
 }
 function doPost(e) {
