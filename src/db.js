@@ -1,4 +1,4 @@
-import {TYPES,checkPrintBudget,personKey} from './freebies.js';
+import {TYPES,checkPrintBudget,personKey,repriceFreibier} from './freebies.js';
 let connection;
 export function openDB(){
  if(connection)return connection;
@@ -10,7 +10,7 @@ export function openDB(){
  });return connection;
 }
 async function run(store,mode,action){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(store,mode);let request;try{request=action(tx.objectStore(store));}catch(e){reject(e);return;}tx.oncomplete=()=>resolve(request?.result);tx.onerror=()=>reject(tx.error||request?.error);tx.onabort=()=>reject(tx.error||request?.error||new Error('Speichern abgebrochen.'));});}
-export const allEntries=()=>run('activities','readonly',s=>s.getAll());
+export async function allEntries(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction('activities','readwrite'),store=tx.objectStore('activities'),request=store.getAll();let entries;request.onsuccess=()=>{entries=request.result.map(entry=>{const next=repriceFreibier(entry);if(next!==entry)store.put(next);return next;});};tx.oncomplete=()=>resolve(entries);tx.onerror=event=>reject(event.target?.error||tx.error);tx.onabort=()=>reject(tx.error||new Error('Aktivitäten konnten nicht aktualisiert werden.'));});}
 export const getEntry=barcode=>run('activities','readonly',s=>s.index('barcode').get(barcode));
 export async function addEntry(entry){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction('activities','readwrite'),s=tx.objectStore('activities'),r=s.getAll();let failure;r.onsuccess=()=>{try{checkPrintBudget(r.result,entry);s.add(entry);}catch(e){failure=e;tx.abort();}};tx.oncomplete=()=>resolve();tx.onerror=event=>{failure=failure||event.target?.error||tx.error;};tx.onabort=()=>reject(failure||tx.error||new Error('Speichern abgebrochen.'));});}
 export async function deleteEntry(id){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(['activities','meta','photo-images'],'readwrite');tx.objectStore('activities').delete(id);tx.objectStore('meta').delete('photo:'+id);tx.objectStore('photo-images').delete(id);tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);tx.onerror=()=>reject(tx.error);});}

@@ -4,10 +4,10 @@ async function quick(page,type){await page.locator(`[data-quick=${type}]`).click
 test('name, four quick actions, custom savings, badges and chart persist',async({page})=>{
  await ready(page);await page.locator('[data-quick=karren]').click();await expect(page.locator('#toast')).toContainText('Namen');await page.locator('#person-name').fill('Anna');
  for(const type of ['karren','stadtbad','freibier','apfel'])await quick(page,type);
- await expect(page.locator('#group-stat-total')).toHaveText('4');await expect(page.locator('#total-saved')).toContainText('30,85');
- await page.locator('.custom-details summary').click();await page.locator('#custom-title').fill('Kaffee');await page.locator('#custom-value').fill('20,50');await page.getByRole('button',{name:'Ersparnis eintragen',exact:true}).click();await expect(page.locator('#group-stat-total')).toHaveText('5');await expect(page.locator('#my-saved')).toContainText('51,35');
- await expect(page.locator('.achievement.unlocked')).toHaveCount(3);
- await expect(page.locator('#savings-chart svg')).toBeVisible();await page.locator('.leader-row').click();await expect(page.locator('#detail-dialog')).toBeVisible();await expect(page.locator('#detail-content')).toContainText('51,35');await page.locator('#detail-close').click();
+ await expect(page.locator('#group-stat-total')).toHaveText('4');await expect(page.locator('#total-saved')).toContainText('28,35');
+ await page.locator('.custom-details summary').click();await page.locator('#custom-title').fill('Kaffee');await page.locator('#custom-value').fill('20,50');await page.getByRole('button',{name:'Ersparnis eintragen',exact:true}).click();await expect(page.locator('#group-stat-total')).toHaveText('5');await expect(page.locator('#my-saved')).toContainText('48,85');
+ await expect(page.locator('.achievement.unlocked')).toHaveCount(2);
+ await expect(page.locator('#savings-chart svg')).toBeVisible();await page.locator('.leader-row').click();await expect(page.locator('#detail-dialog')).toBeVisible();await expect(page.locator('#detail-content')).toContainText('48,85');await page.locator('#detail-close').click();
  await page.reload();await expect(page.locator('#person-name')).toHaveValue('Anna');await expect(page.locator('#group-stat-total')).toHaveText('5');await expect(page.getByText('Druckauftrag erfassen',{exact:true})).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=Math.ceil(innerWidth))).toBe(true);
 });

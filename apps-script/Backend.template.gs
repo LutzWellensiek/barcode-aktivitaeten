@@ -37,7 +37,7 @@ function read_(){
  const s=sheet_('Fahrten',['Zeitstempel','Name','Aktion','Wert','ID','Barcode','Besuchsdatum','Decodierung']);
  if(s.getMaxColumns()<8){if(!requestContext_.locked)return locked_(read_);s.insertColumnsAfter(s.getMaxColumns(),8-s.getMaxColumns());}
  const expected=['ID','Barcode','Besuchsdatum','Decodierung'],headers=s.getRange(1,5,1,4).getValues()[0];if(headers.some((v,i)=>v&&String(v)!==expected[i]))throw new Error('Die Zusatzspalten E:H sind bereits belegt. Bitte vor der Erweiterung prüfen.');if(headers.every(v=>!v)&&s.getLastRow()>1&&s.getRange(2,5,s.getLastRow()-1,4).getValues().some(row=>row.some(v=>v!=='')))throw new Error('In den Zusatzspalten E:H sind bereits Daten vorhanden. Es wurde nichts überschrieben.');if(headers.some((v,i)=>String(v||'')!==expected[i])){if(!requestContext_.locked)return locked_(read_);s.getRange(1,5,1,4).setValues([expected]);}
- const rows=s.getDataRange().getValues(),entries=[],timezone=Session.getScriptTimeZone();
+ const rows=s.getDataRange().getValues(),entries=[],timezone=Session.getScriptTimeZone();let repriced=false;
  for(let i=1;i<rows.length;i++){
   const r=rows[i],person=text_(r[1]).trim();if(!person||FreebieDomain.personKey(person)==='person')continue;
   const a=text_(r[2]),fixed={Karren:'karren',Stadtbad:'stadtbad',Freibier:'freibier',Apfel:'apfel'};let type=fixed[a]||'other',title='';
@@ -45,10 +45,11 @@ function read_(){
   let id=String(r[4]||'');if(!id){if(!requestContext_.locked)return locked_(read_);id=Utilities.getUuid();s.getRange(i+1,5).setValue(id);}
   let time=r[0] instanceof Date?r[0]:new Date(r[0]),valid=!isNaN(time.getTime());
   let date=r[6] instanceof Date?Utilities.formatDate(r[6],timezone,'yyyy-MM-dd'):String(r[6]||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(date))date=valid?Utilities.formatDate(time,timezone,'yyyy-MM-dd'):'';
-  const amount=typeof r[3]==='number'?r[3]:Number(String(r[3]).replace(',','.'));const entry={id,person,type,title,date,amountCents:isFinite(amount)?Math.round(amount*100):0,scannedAt:valid?time.toISOString():'',source:r[5]?'scan':'manual'};
+  const amount=typeof r[3]==='number'?r[3]:Number(String(r[3]).replace(',','.'));if(type==='freibier'&&(!isFinite(amount)||Math.round(amount*100)!==FreebieDomain.TYPES.freibier.cents)){if(!requestContext_.locked)return locked_(read_);if(!repriced){PropertiesService.getScriptProperties().setProperty('APP_REVISION',String(revision_('APP_REVISION')+1));repriced=true;}s.getRange(i+1,4).setValue(FreebieDomain.TYPES.freibier.cents/100);}const entry={id,person,type,title,date,amountCents:type==='freibier'?FreebieDomain.TYPES.freibier.cents:isFinite(amount)?Math.round(amount*100):0,scannedAt:valid?time.toISOString():'',source:r[5]?'scan':'manual'};
   if(r[5]){entry.barcode=String(r[5]);try{const metadata=JSON.parse(String(r[7]||'{}'));entry.detected=metadata.detected||{confidence:'unbekannt'};entry.assignment=metadata.assignment||'manual';}catch(error){entry.detected={confidence:'unbekannt'};}}
   entries.push(entry);
  }
+ if(repriced)SpreadsheetApp.flush();
  const votes={},villages={};const vs=book_().getSheetByName('Votes');if(vs){const rows=vs.getDataRange().getValues();for(let i=1;i<rows.length;i++){const key=FreebieDomain.personKey(text_(rows[i][1])),feature=String(rows[i][2]);if(key&&FreebieDomain.FEATURES.some(f=>f.id===feature))votes[key]=feature;}}
  const village=book_().getSheetByName('Village');if(village){const rows=village.getDataRange().getValues();for(let i=1;i<rows.length;i++){const key=FreebieDomain.personKey(text_(rows[i][1])),id=Number(rows[i][2]);if(key&&FreebieDomain.VILLAGE.some(v=>v.id===id)){villages[key]=villages[key]||[1];if(villages[key].indexOf(id)<0)villages[key].push(id);}}}
  return {entries,votes,villages,themes:themes_(),sounds:sounds_(),revision:Number(PropertiesService.getScriptProperties().getProperty('APP_REVISION')||0)};

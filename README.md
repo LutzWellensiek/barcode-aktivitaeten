@@ -11,7 +11,7 @@ Die Funktionen der bisherigen Google-Sheets-App im neuen Draußen-Design mit ver
 - Sechs Farbstile über das Einstellungsrad: Wald & Salbei, Lavendel, Ozean, Abendrot, Rosenquarz und Mitternacht. Pro normalisiertem Namen gespeichert; in der Google-App geräteübergreifend über die bestehende Gruppenanbindung, im lokalen Modus in diesem Browser. Gemeinsam gespart steht direkt unter der Kopfzeile.
 - Kurze, eigene Soundeffekte: Gipfel-Arpeggio für Karren, Wassertropfen für Stadtbad, Glas-Anstoßen für Freibier, Plopp für Apfel sowie Scan-, Erfolgs-, Duplikat- und Bedientöne. Im Einstellungsrad anhören oder stummschalten; An/Aus je Namen gespeichert, in der Google-App geräteübergreifend. Erst nach einer Berührung aktiv; Buchungston erst bei erfolgreichem Speichern. Keine Audiodateien, Downloads, Mikrofonrechte oder Hintergrundmusik.
 - Name auf dem Gerät merken; Datum beim Öffnen, Zurückkehren und Tageswechsel auf heute setzen. Bekannte Personen auswählen; Besuchsdatum bei Tickets prüfen.
-- Karren 16,50 €, Stadtbad 9,40 €, Freibier 4,50 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
+- Karren 16,50 €, Stadtbad 9,40 €, Freibier 2,00 €, Apfel 0,45 € als Schnellbuchung; eigene Ersparnis mit Beschreibung und Betrag.
 - I25 über Kamera, Foto oder Eingabe. Karren experimentell; Stadtbad wahrscheinlich mit Mod10. Barcode stets eindeutig, manuelle Schnellbuchungen separat mehrfach möglich.
 - Persönliche Aktivitätszähler oben, Gruppenzähler am gemeinsamen Sparziel. Gemeinsame und persönliche Ersparnis, sieben Kategorien inklusive alter Archivdaten, Rangliste, Personen-Details, Überholhinweis, 1.000-€-Meilensteine.
 - Zwölf Erfolge inklusive Secret/Legende. Spardorf und Feature-Abstimmungen sind aus der Oberfläche entfernt; frühere Daten bleiben unberührt.
@@ -138,3 +138,7 @@ Unter jedem Vorschlag stehen die Namen der zustimmenden Personen. „Nicht dabei
 Bild antippen oder per Tastatur öffnen: Die bildschirmfüllende Ansicht zeigt das größere gespeicherte Original vollständig eingepasst, mit einer sofortigen Vorschau während des Nachladens. Schließen über × oder Escape; spätere Bildantworten öffnen eine bereits geschlossene Ansicht nicht wieder. Die Ansicht füllt auch im Handy-Querformat den verfügbaren App-Bildschirm. Keine zusätzlichen Browser-Vollbildrechte erforderlich.
 
 Im gemeinsamen Blatt DraussenStimmen ergänzt Spalte E die boolesche Absage-Auswahl. Bestehende vier Spalten und Stimmen bleiben erhalten. Bei einer belegten fremden Zusatzspalte wird abgebrochen. Beide Auswahlen werden unter derselben Schreibsperre in einer Zeile gemeinsam aktualisiert. Lokale Datensätze benötigen für die neuen Antwortfelder keine IndexedDB-Migration.
+
+## Freibier-Wert
+
+Freibier zählt seit dem 13.11.2026 mit **2,00 €**, auch rückwirkend. Beim Laden werden vorhandene Freibier-Buchungen im lokalen Speicher und im gemeinsamen Blatt Fahrten auf diesen Wert gebracht. In Sheets ändert sich nur der Wert in Spalte D der als Freibier erkannten Zeilen; IDs, Datum, Namen, Fotos und andere Aktivitätsarten bleiben erhalten. Die gemeinsame Revision wird bei einer Korrektur erhöht. Auch gespeicherte Gruppenstände und noch ausstehende Buchungen zeigen sofort 2,00 €; Summen, Rangliste, Diagramm und CSV verwenden dieselben korrigierten Einträge.

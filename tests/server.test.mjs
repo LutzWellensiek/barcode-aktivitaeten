@@ -55,3 +55,22 @@ test('Four-column vote sheets upgrade safely and a foreign fifth column is never
 
 test('Activities without an image require no Drive storage and their creator can select either response',()=>{const s=server(),input=proposal('text-only');let result=s.call('votingCreate',{proposal:input});assert.equal(result.ok,true,result.error);let p=result.state.items[0];assert.equal(p.hasImage,false);assert.equal(p.width,0);assert.equal(p.height,0);assert.equal(s.call('votingCreate',{proposal:input}).state.items.length,1);assert.equal(s.call('votingImage',{id:input.id}).retryable,false);p=s.call('votingVote',{id:input.id,name:'Anna',voted:true}).state.items[0];assert.equal(p.voted,true);assert.equal(p.voteCount,1);assert.equal(p.voterNames.anna,'Anna');p=s.call('votingDecline',{id:input.id,name:'Anna',declined:true}).state.items[0];assert.equal(p.voteCount,0);assert.equal(p.declineCount,1);assert.equal(p.declinerNames.anna,'Anna');});
 test('An optional image can be attached later without losing creator responses or duplicating the activity',()=>{const s=photoServer(),input=proposal('later-image');s.call('votingCreate',{proposal:input});assert.equal(s.files.size,0);s.call('votingVote',{id:input.id,name:'Anna',voted:true});let result=s.call('votingUpdate',{proposal:input,name:'Anna',baseVersion:1,mutationId:'attach-image',image:testImage});assert.equal(result.ok,true,result.error);assert.equal(result.state.items[0].hasImage,true);assert.equal(result.state.items[0].voteCount,1);assert.equal(result.state.items[0].voterNames.anna,'Anna');assert.equal(s.files.size,2);assert.equal(s.call('votingImage',{id:input.id}).state.data,testJpeg);assert.equal(s.call('votingCreate',{proposal:input}).state.items.length,1);assert.equal(s.files.size,2);});
+
+test('Historical Freibier values are corrected once under lock without touching other cells, IDs or photos',()=>{
+ const s=photoServer(),before=s.call('read').state,photo=s.call('photoUpload',{entryId:before.entries[0].id,name:'Anna',image:testImage}).state.photo;
+ const sheet=s.sheets.get('Fahrten'),stamp=new Date('2026-09-01T10:00:00Z');
+ sheet.appendRow([stamp,'Anna','Freibier',4.5,'beer-1','','2026-09-01','keep-1']);
+ sheet.appendRow([stamp,'Ben','Freibier','4,50','beer-2','','2026-09-02','keep-2']);
+ sheet.appendRow([stamp,'Ben','Freibier',2,'beer-current','','2026-09-03','keep-3']);
+ sheet.appendRow([stamp,'Ben','Individuell: Freibier',4.5,'custom-beer','','2026-09-04','keep-4']);
+ const original=structuredClone(sheet.rows),revision=Number(s.props.get('APP_REVISION')||0),getRange=sheet.getRange.bind(sheet);let held=false,writes=0;
+ s.context.LockService.getScriptLock=()=>({waitLock(){assert.equal(held,false);held=true;},releaseLock(){held=false;}});
+ sheet.getRange=(row,col,...rest)=>{const range=getRange(row,col,...rest),write=range.setValue;range.setValue=function(value){if(col===4){assert.equal(held,true);writes++;}return write.call(this,value);};return range;};
+ const result=s.call('read',{force:true});assert.equal(result.ok,true,result.error);assert.equal(writes,2);assert.equal(held,false);assert.equal(result.state.revision,revision+1);
+ assert.deepEqual(sheet.rows,original.map(row=>row[2]==='Freibier'?[...row.slice(0,3),2,...row.slice(4)]:row));
+ assert.deepEqual(Array.from(result.state.entries.filter(e=>e.type==='freibier'),e=>e.amountCents),[200,200,200]);
+ assert.equal(result.state.entries.find(e=>e.id==='custom-beer').amountCents,450);
+ assert.equal(s.call('photoImage',{id:photo.id}).state.data,testJpeg);
+ assert.equal(s.call('read',{force:true}).state.revision,revision+1);assert.equal(writes,2);
+ const added=s.call('add',{entry:record('queued-beer',{type:'freibier',amountCents:450})});assert.equal(added.ok,true,added.error);assert.equal(sheet.rows.at(-1)[3],2);assert.equal(added.state.entries.find(e=>e.id==='queued-beer').amountCents,200);
+});

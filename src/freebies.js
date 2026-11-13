@@ -1,6 +1,6 @@
 export {THEMES,validTheme} from './theme-data.js';
 import {localDate,validDate,normalizeBarcode} from './core.js';
-export const TYPES={karren:{name:'Karren',icon:'↟',cents:1650},stadtbad:{name:'Stadtbad',icon:'≈',cents:940},freibier:{name:'Freibier',icon:'🍺',cents:450},apfel:{name:'Apfel',icon:'🍎',cents:45},custom:{name:'Individuell',icon:'✨'},print:{name:'Drucken',icon:'🖨️'},other:{name:'Andere Aktivität',icon:'•'}};
+export const TYPES={karren:{name:'Karren',icon:'↟',cents:1650},stadtbad:{name:'Stadtbad',icon:'≈',cents:940},freibier:{name:'Freibier',icon:'🍺',cents:200},apfel:{name:'Apfel',icon:'🍎',cents:45},custom:{name:'Individuell',icon:'✨'},print:{name:'Drucken',icon:'🖨️'},other:{name:'Andere Aktivität',icon:'•'}};
 export const FEATURES=[{id:'darkmode',title:'🌙 Dark Mode Design'},{id:'push',title:'🔔 Push-Alarm aufs Handy'},{id:'stats',title:'📊 Erweiterte Statistiken'},{id:'minigame',title:'🎲 Mini-Spiel Erweiterung'}];
 export const VILLAGE=[{id:1,name:'⛺ Zeltlager',cents:0,desc:'Der Startpunkt eurer Ersparnis.'},{id:2,name:'🛖 Holzhütte',cents:3000,desc:'Die erste feste Unterkunft.'},{id:3,name:'🏡 Marktplatz',cents:10000,desc:'Handel blüht im Dorf auf.'},{id:4,name:'🏰 Ritterburg',cents:25000,desc:'Schutz vor feindlichen Sparern.'},{id:5,name:'🌆 Cyberpunk-Stadt',cents:60000,desc:'Eine Metropole voller Möglichkeiten.'},{id:6,name:'🚀 Mondbasis',cents:150000,desc:'Sparen in neuen Sphären.'},{id:7,name:'🌌 Dyson-Sphäre',cents:500000,desc:'Eure Ersparnis wird galaktisch.'}];
 export function personKey(name){return String(name||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('de-DE');}
@@ -45,3 +45,6 @@ export function groupStats(entries){
 }
 export function savingsSeries(entries){const dates=[...new Set(entries.filter(e=>validDate(e.date)&&personKey(e.person)).map(e=>e.date))].sort();const people=groupStats(entries).leaderboard;return {dates,series:people.map(p=>{let total=0;return {name:p.name,key:p.key,values:dates.map(date=>{total+=entries.filter(e=>e.date===date&&personKey(e.person)===p.key).reduce((n,e)=>n+e.amountCents,0);return total;})};})};}
 export function milestone(cents){const target=(Math.floor(cents/100000)+1)*100000;return {target,remaining:target-cents,percent:(cents-(target-100000))/1000};}
+
+// This activity uses the current fixed value for historical entries as well.
+export function repriceFreibier(entry){return entry.type==='freibier'&&entry.amountCents!==TYPES.freibier.cents?{...entry,amountCents:TYPES.freibier.cents}:entry;}
